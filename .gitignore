@@ -1,0 +1,31 @@
+# Build and IDE
+build/
+build-*/
+*.elf
+*.bin
+*.hex
+*.map
+*.out
+
+# ESP-IDF
+sdkconfig
+sdkconfig.*
+config.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# Git
+.DS_Store
+/.history
+
+# Misc
+*.log
+*.tmp

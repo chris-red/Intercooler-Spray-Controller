@@ -1,0 +1,7 @@
+build/
+sdkconfig.old
+.vscode/local_settings
+*.o
+*.a
+*.bin
+.DS_Store
