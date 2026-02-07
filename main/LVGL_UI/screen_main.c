@@ -9,8 +9,8 @@
 static lv_obj_t *container = NULL;
 static lv_obj_t *lbl_temperature = NULL;
 static lv_obj_t *lbl_time = NULL;
-static lv_obj_t *led_relay_active = NULL;
-static lv_obj_t *led_tank_empty = NULL;
+static lv_obj_t *icon_relay_active = NULL;
+static lv_obj_t *icon_tank_empty = NULL;
 static lv_timer_t *update_timer = NULL;
 
 /***********************
@@ -44,12 +44,12 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
 
     // ===== TOP SECTION: Temperature Display =====
     lv_obj_t *temp_section = lv_obj_create(container);
-    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(75));
+    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(65));
     lv_obj_set_style_bg_color(temp_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(temp_section, 0, 0);
     lv_obj_set_style_pad_all(temp_section, 0, 0);
     lv_obj_set_flex_flow(temp_section, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(temp_section, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(temp_section, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(temp_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
     lv_obj_add_flag(temp_section, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
 
@@ -63,10 +63,11 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
 
     // ===== BOTTOM SECTION: Relay | Time | Tank (3 columns) =====
     lv_obj_t *bottom_section = lv_obj_create(container);
-    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(25));
+    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(35));
     lv_obj_set_style_bg_color(bottom_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(bottom_section, 0, 0);
-    lv_obj_set_style_pad_all(bottom_section, 2, 0);
+    lv_obj_set_style_pad_ver(bottom_section, 2, 0);
+    lv_obj_set_style_pad_hor(bottom_section, 60, 0);
     lv_obj_set_flex_flow(bottom_section, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(bottom_section, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(bottom_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
@@ -83,15 +84,10 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_clear_flag(relay_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(relay_container, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
-    led_relay_active = lv_led_create(relay_container);
-    lv_obj_set_size(led_relay_active, 35, 35);
-    lv_led_set_color(led_relay_active, COLOR_RELAY_ACTIVE);
-    lv_led_off(led_relay_active);
-
-    lv_obj_t *relay_label = lv_label_create(relay_container);
-    lv_label_set_text(relay_label, "Relay");
-    lv_obj_set_style_text_color(relay_label, COLOR_TEXT_SECONDARY, 0);
-    lv_obj_set_style_text_font(relay_label, fonts->small, 0);
+    icon_relay_active = lv_label_create(relay_container);
+    lv_label_set_text(icon_relay_active, LV_SYMBOL_TINT);
+    lv_obj_set_style_text_font(icon_relay_active, fonts->large, 0);
+    lv_obj_set_style_text_color(icon_relay_active, COLOR_INDICATOR_OFF, 0);
 
     // --- Time Display (middle third) ---
     lv_obj_t *time_section = lv_obj_create(bottom_section);
@@ -120,15 +116,10 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_clear_flag(tank_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(tank_container, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
-    led_tank_empty = lv_led_create(tank_container);
-    lv_obj_set_size(led_tank_empty, 35, 35);
-    lv_led_set_color(led_tank_empty, COLOR_TANK_EMPTY);
-    lv_led_off(led_tank_empty);
-
-    lv_obj_t *tank_label = lv_label_create(tank_container);
-    lv_label_set_text(tank_label, "Tank");
-    lv_obj_set_style_text_color(tank_label, COLOR_TEXT_SECONDARY, 0);
-    lv_obj_set_style_text_font(tank_label, fonts->small, 0);
+    icon_tank_empty = lv_label_create(tank_container);
+    lv_label_set_text(icon_tank_empty, LV_SYMBOL_TINT);
+    lv_obj_set_style_text_font(icon_tank_empty, fonts->large, 0);
+    lv_obj_set_style_text_color(icon_tank_empty, COLOR_INDICATOR_OFF, 0);
 
     // Create timer to update time every 1 second
     update_timer = lv_timer_create(update_timer_cb, 1000, NULL);
@@ -153,8 +144,8 @@ void screen_main_destroy(void)
     
     lbl_temperature = NULL;
     lbl_time = NULL;
-    led_relay_active = NULL;
-    led_tank_empty = NULL;
+    icon_relay_active = NULL;
+    icon_tank_empty = NULL;
 }
 
 void screen_main_show(void)
@@ -203,22 +194,22 @@ void screen_main_update_time(void)
 
 void screen_main_set_tank_empty(bool is_empty)
 {
-    if (!led_tank_empty) return;
+    if (!icon_tank_empty) return;
 
     if (is_empty) {
-        lv_led_on(led_tank_empty);
+        lv_obj_set_style_text_color(icon_tank_empty, COLOR_TANK_EMPTY, 0);  // Red droplet
     } else {
-        lv_led_off(led_tank_empty);
+        lv_obj_set_style_text_color(icon_tank_empty, COLOR_INDICATOR_OFF, 0);  // Dim
     }
 }
 
 void screen_main_set_relay_active(bool is_active)
 {
-    if (!led_relay_active) return;
+    if (!icon_relay_active) return;
 
     if (is_active) {
-        lv_led_on(led_relay_active);
+        lv_obj_set_style_text_color(icon_relay_active, COLOR_ACCENT, 0);  // Blue spray
     } else {
-        lv_led_off(led_relay_active);
+        lv_obj_set_style_text_color(icon_relay_active, COLOR_INDICATOR_OFF, 0);  // Dim
     }
 }
