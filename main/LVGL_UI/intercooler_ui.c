@@ -1,4 +1,6 @@
 #include "intercooler_ui.h"
+// Declare the font externally since no header exists
+extern const lv_font_t race_120;
 
 /***********************
  *  STATIC VARIABLES
@@ -17,6 +19,7 @@ static lv_timer_t *update_timer = NULL;
 static const lv_font_t *font_large = NULL;
 static const lv_font_t *font_normal = NULL;
 static const lv_font_t *font_small = NULL;
+static const lv_font_t *font_temp = NULL;
 
 /***********************
  *  STATIC PROTOTYPES
@@ -39,6 +42,7 @@ static void label_set_text_color(lv_obj_t *label, const char *text, lv_color_t c
 void intercooler_ui_create(void)
 {
     // Set up fonts - use available fonts from configuration
+    font_temp = &race_120;   // Large font for temperature (most screen space)
     font_large = &lv_font_montserrat_48;   // Large font for temperature (most screen space)
     font_normal = &lv_font_montserrat_12;  // Normal font for time
     font_small = &lv_font_montserrat_12;   // Small font for labels
@@ -67,11 +71,13 @@ void intercooler_ui_create(void)
 
     // Temperature value (large number) - no label
     lbl_temperature = lv_label_create(temp_section);
-    lv_label_set_text(lbl_temperature, "12 °c");
+    lv_label_set_text(lbl_temperature, "88°");
     lv_obj_set_style_text_color(lbl_temperature, COLOR_TEMP_NORMAL, 0);
-    lv_obj_set_style_text_font(lbl_temperature, font_large, 0);
+    lv_obj_set_style_text_font(lbl_temperature, font_temp, 0);
     // Make the label itself larger to accommodate bigger text
     lv_obj_set_size(lbl_temperature, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    // Shift temperature value down slightly
+    lv_obj_set_style_pad_top(lbl_temperature, 50, 0); // Increase top padding to move label down
 
     // ===== BOTTOM SECTION: Relay | Time | Tank (3 columns) =====
     lv_obj_t *bottom_section = lv_obj_create(main_container);

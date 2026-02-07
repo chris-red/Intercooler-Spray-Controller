@@ -44,7 +44,7 @@ void Driver_Init(void)
 }
 void app_main(void)
 {   
-    Wireless_Init();
+  //  Wireless_Init();
     Driver_Init();
 
     LCD_Init();

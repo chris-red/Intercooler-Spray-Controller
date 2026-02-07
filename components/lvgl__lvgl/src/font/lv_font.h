@@ -127,6 +127,8 @@ static inline lv_coord_t lv_font_get_line_height(const lv_font_t * font_p)
  *      MACROS
  **********************/
 
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(race_120)
+
 #define LV_FONT_DECLARE(font_name) extern const lv_font_t font_name;
 
 #if LV_FONT_MONTSERRAT_8

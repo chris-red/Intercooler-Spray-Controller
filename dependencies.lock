@@ -6,7 +6,7 @@ dependencies:
   lvgl/lvgl:
     dependencies: []
     source:
-      path: C:\Users\chris\Downloads\ESP32-S3-Touch-LCD-2.1-Demo\ESP-IDF\ESP32-S3-Touch-LCD-2.1-Test\components\lvgl__lvgl
+      path: C:\dev\Intercooler-Spray-Controller\components\lvgl__lvgl
       type: local
     version: 8.2.0
 direct_dependencies:
