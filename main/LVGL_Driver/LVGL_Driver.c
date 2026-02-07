@@ -41,6 +41,9 @@ void example_increase_lvgl_tick(void *arg)
 /*Read the touchpad*/
 void example_touchpad_read( lv_indev_drv_t * drv, lv_indev_data_t * data )
 {
+    static uint16_t last_valid_x = 0;
+    static uint16_t last_valid_y = 0;
+
     uint16_t touchpad_x[1] = {0};
     uint16_t touchpad_y[1] = {0};
     uint8_t touchpad_cnt = 0;
@@ -52,8 +55,17 @@ void example_touchpad_read( lv_indev_drv_t * drv, lv_indev_data_t * data )
     bool touchpad_pressed = esp_lcd_touch_get_coordinates(drv->user_data, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 1);
 
     if (touchpad_pressed && touchpad_cnt > 0) {
-        data->point.x = touchpad_x[0];
-        data->point.y = touchpad_y[0];
+        if (touchpad_x[0] < EXAMPLE_LCD_H_RES && touchpad_y[0] < EXAMPLE_LCD_V_RES) {
+            // Valid coordinates — update last known position
+            last_valid_x = touchpad_x[0];
+            last_valid_y = touchpad_y[0];
+        } else {
+            // Out-of-range X/Y — keep pressing at last valid position
+            ESP_LOGW(LVGL_TAG, "Touch noisy: X=%u Y=%u -> holding at X=%u Y=%u",
+                     touchpad_x[0], touchpad_y[0], last_valid_x, last_valid_y);
+        }
+        data->point.x = last_valid_x;
+        data->point.y = last_valid_y;
         data->state = LV_INDEV_STATE_PR;
         ESP_LOGI(LVGL_TAG, "X=%u Y=%u", data->point.x, data->point.y);
     } else {

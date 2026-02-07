@@ -104,11 +104,18 @@ static esp_err_t read_data(esp_lcd_touch_handle_t tp)
     touch_cst820_i2c_write(tp, TOUCH_POSITION, &Over, 1);
 
     if ((buf[0] & 0x0F) == 0x00) {
+        /* No touch - clear points */
+        taskENTER_CRITICAL(&tp->data.lock);
+        tp->data.points = 0;
+        taskEXIT_CRITICAL(&tp->data.lock);
         touch_cst820_i2c_write(tp, TOUCH_NUM, &clear, 1);  
     } else {
         /* Count of touched points */
         touch_cnt = buf[0] & 0x0F;
         if (touch_cnt > 2 || touch_cnt == 0) {
+            taskENTER_CRITICAL(&tp->data.lock);
+            tp->data.points = 0;
+            taskEXIT_CRITICAL(&tp->data.lock);
             touch_cst820_i2c_write(tp, TOUCH_NUM, &clear, 1);
             return ESP_OK;
         }
@@ -126,14 +133,27 @@ static esp_err_t read_data(esp_lcd_touch_handle_t tp)
         /* Number of touched points */
         if(touch_cnt > CONFIG_ESP_LCD_TOUCH_MAX_POINTS)
             touch_cnt = CONFIG_ESP_LCD_TOUCH_MAX_POINTS;
-        tp->data.points = (uint8_t)touch_cnt;
-        
-        /* Fill all coordinates */
+
+        uint8_t valid_cnt = 0;
+        /* Fill all coordinates, filtering invalid ones */
         for (i = 0; i < touch_cnt; i++) {
-            tp->data.coords[i].x = (uint16_t)(((uint16_t)(buf[(i * 6) ] & 0x0F) << 8) + (buf[(i * 6) + 1]));               
-            tp->data.coords[i].y = (uint16_t)(((uint16_t)(buf[(i * 6) + 2] & 0x0F) << 8) + (buf[(i * 6) + 3])); 
-            tp->data.coords[i].strength = 50;
+            uint16_t raw_x = (uint16_t)(((uint16_t)(buf[(i * 6) ] & 0x0F) << 8) + (buf[(i * 6) + 1]));               
+            uint16_t raw_y = (uint16_t)(((uint16_t)(buf[(i * 6) + 2] & 0x0F) << 8) + (buf[(i * 6) + 3]));
+            
+            /* Check event type - upper nibble of first byte: 0=down, 1=up, 2=contact */
+            uint8_t event = (buf[(i * 6)] >> 4) & 0x0F;
+            
+            /* Discard if coordinates out of range or event is "up" (lift-off) */
+            if (raw_x >= tp->config.x_max || raw_y >= tp->config.y_max || event == 1) {
+                continue;
+            }
+            
+            tp->data.coords[valid_cnt].x = raw_x;
+            tp->data.coords[valid_cnt].y = raw_y;
+            tp->data.coords[valid_cnt].strength = 50;
+            valid_cnt++;
         }
+        tp->data.points = valid_cnt;
 
         taskEXIT_CRITICAL(&tp->data.lock);
     }

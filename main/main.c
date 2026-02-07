@@ -29,7 +29,7 @@ void Driver_Loop(void *parameter)
     {
        // QMI8658_Loop();
         RTC_Loop();
-        BAT_Get_Volts();
+       // BAT_Get_Volts();
         vTaskDelay(pdMS_TO_TICKS(100));
     }
     vTaskDelete(NULL);
@@ -37,7 +37,7 @@ void Driver_Loop(void *parameter)
 void Driver_Init(void)
 {
     Flash_Searching();
-    BAT_Init();
+    //BAT_Init();
     I2C_Init();
     PCF85063_Init();
    // QMI8658_Init();
@@ -63,12 +63,6 @@ void app_main(void)
 /********************* Intercooler UI *********************/
     intercooler_ui_create();
     printf("UI created\n");
-
-    // lv_demo_widgets();
-    // lv_demo_keypad_encoder();
-    // lv_demo_benchmark();
-    // lv_demo_stress();
-    // lv_demo_music();
 
     while (1) {
         // raise the task priority of LVGL and/or reduce the handler period can improve the performance

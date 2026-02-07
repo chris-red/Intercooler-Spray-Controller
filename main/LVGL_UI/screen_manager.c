@@ -5,6 +5,9 @@
 #include "screen_spray_duration.h"
 #include "screen_spray_interval.h"
 #include "ui_common.h"
+#include "esp_log.h"
+
+static const char *TAG = "screen_mgr";
 
 /***********************
  *  STATIC VARIABLES
@@ -57,53 +60,53 @@ static void inactivity_timer_cb(lv_timer_t *timer)
 
 static void gesture_event_cb(lv_event_t *e)
 {
-    // Don't navigate if a slider is the currently pressed object
-    lv_indev_t *indev = lv_indev_get_act();
-    if (indev) {
-        lv_obj_t *obj_act = lv_indev_get_obj_act();
-        if (obj_act && lv_obj_check_type(obj_act, &lv_slider_class)) {
-            return;  // Slider is being dragged, ignore gesture
-        }
-    }
-
     // Cooldown guard to prevent accidental rapid transitions
     if (!nav_cooldown_check()) {
+        ESP_LOGI(TAG, "Gesture IGNORED - cooldown active");
         return;
     }
 
     screen_manager_reset_inactivity();
     
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+    const char *dir_str = (dir == LV_DIR_LEFT) ? "LEFT" :
+                          (dir == LV_DIR_RIGHT) ? "RIGHT" :
+                          (dir == LV_DIR_TOP) ? "UP" :
+                          (dir == LV_DIR_BOTTOM) ? "DOWN" : "UNKNOWN";
+    ESP_LOGI(TAG, "Swipe %s on screen %d", dir_str, current_screen);
     
     if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_BOTTOM) {
-        // Swipe down from main -> brightness
+        ESP_LOGI(TAG, "NAV: main -> brightness");
         screen_manager_navigate(SCREEN_ID_BRIGHTNESS, SCREEN_TRANSITION_SLIDE_DOWN);
     } else if (current_screen == SCREEN_ID_BRIGHTNESS && dir == LV_DIR_TOP) {
-        // Swipe up from brightness -> main
+        ESP_LOGI(TAG, "NAV: brightness -> main");
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
     } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_LEFT) {
-        // Swipe left from main -> trigger temp
+        ESP_LOGI(TAG, "NAV: main -> trigger temp");
         screen_manager_navigate(SCREEN_ID_TRIGGER_TEMP, SCREEN_TRANSITION_SLIDE_LEFT);
     } else if (current_screen == SCREEN_ID_TRIGGER_TEMP && dir == LV_DIR_RIGHT) {
-        // Swipe right from trigger temp -> main
+        ESP_LOGI(TAG, "NAV: trigger temp -> main");
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_RIGHT);
     } else if (current_screen == SCREEN_ID_TRIGGER_TEMP && dir == LV_DIR_LEFT) {
-        // Swipe left from trigger temp -> spray duration
+        ESP_LOGI(TAG, "NAV: trigger temp -> spray duration");
         screen_manager_navigate(SCREEN_ID_SPRAY_DURATION, SCREEN_TRANSITION_SLIDE_LEFT);
     } else if (current_screen == SCREEN_ID_SPRAY_DURATION && dir == LV_DIR_RIGHT) {
-        // Swipe right from spray duration -> trigger temp
+        ESP_LOGI(TAG, "NAV: spray duration -> trigger temp");
         screen_manager_navigate(SCREEN_ID_TRIGGER_TEMP, SCREEN_TRANSITION_SLIDE_RIGHT);
     } else if (current_screen == SCREEN_ID_SPRAY_DURATION && dir == LV_DIR_LEFT) {
-        // Swipe left from spray duration -> spray interval
+        ESP_LOGI(TAG, "NAV: spray duration -> spray interval");
         screen_manager_navigate(SCREEN_ID_SPRAY_INTERVAL, SCREEN_TRANSITION_SLIDE_LEFT);
     } else if (current_screen == SCREEN_ID_SPRAY_INTERVAL && dir == LV_DIR_RIGHT) {
-        // Swipe right from spray interval -> spray duration
+        ESP_LOGI(TAG, "NAV: spray interval -> spray duration");
         screen_manager_navigate(SCREEN_ID_SPRAY_DURATION, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else {
+        ESP_LOGW(TAG, "Swipe %s on screen %d - NO MATCHING ROUTE", dir_str, current_screen);
     }
 }
 
 static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_transition_t transition)
 {
+    ESP_LOGI(TAG, "animate_transition: out=%p in=%p transition=%d", (void*)out_obj, (void*)in_obj, transition);
     if (transition == SCREEN_TRANSITION_NONE) {
         if (out_obj) lv_obj_add_flag(out_obj, LV_OBJ_FLAG_HIDDEN);
         if (in_obj) lv_obj_clear_flag(in_obj, LV_OBJ_FLAG_HIDDEN);
@@ -205,12 +208,16 @@ void screen_manager_init(void)
 
 void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
 {
+    ESP_LOGI(TAG, "navigate() called: from screen %d to screen %d, transition=%d", current_screen, screen, transition);
+
     if (screen >= SCREEN_ID_MAX || screen == current_screen) {
+        ESP_LOGW(TAG, "navigate() ABORTED: invalid screen %d or same as current %d", screen, current_screen);
         return;
     }
     
     // Create the new screen if it doesn't exist
     if (!screen_containers[screen]) {
+        ESP_LOGI(TAG, "Creating screen %d (container was NULL)", screen);
         switch (screen) {
             case SCREEN_ID_MAIN:
                 screen_containers[screen] = screen_main_create(screen_root);
@@ -228,11 +235,16 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
                 screen_containers[screen] = screen_spray_interval_create(screen_root);
                 break;
             default:
+                ESP_LOGE(TAG, "navigate() FAILED: unknown screen %d", screen);
                 return;
         }
+        ESP_LOGI(TAG, "Screen %d created, container=%p", screen, (void*)screen_containers[screen]);
+    } else {
+        ESP_LOGI(TAG, "Screen %d already exists, container=%p", screen, (void*)screen_containers[screen]);
     }
     
     // Animate transition
+    ESP_LOGI(TAG, "Animating transition: out=%p in=%p", (void*)screen_containers[current_screen], (void*)screen_containers[screen]);
     animate_transition(screen_containers[current_screen], screen_containers[screen], transition);
     
     // Update screens
@@ -280,6 +292,7 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
     }
     
     current_screen = screen;
+    ESP_LOGI(TAG, "Navigation complete. current_screen is now %d", current_screen);
     screen_manager_reset_inactivity();
 }
 
