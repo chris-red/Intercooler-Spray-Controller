@@ -1,24 +1,33 @@
 #include <stdio.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "TCA9554PWR.h"
-#include "PCF85063.h"
-#include "QMI8658.h"
+//#include "sdkconfig.h"
+//#include "freertos/FreeRTOS.h"
+//#include "freertos/task.h"
+//#include "freertos/semphr.h"
+//#include "TCA9554PWR.h"
+//#include "PCF85063.h"
+//#include "QMI8658.h"
 #include "ST7701S.h"
-#include "CST820.h"
+////#include "CST820.h"
 #include "SD_MMC.h"
 #include "LVGL_Driver.h"
 #include "LVGL_Example.h"
 #include "intercooler_ui.h"
-#include "Wireless.h"
+//#include "Wireless.h"
+#include "lvgl.h"
+
+
+// Redraw the entire screen by clearing and recreating the UI
+void refresh_screen(void) {
+    lv_obj_clean(lv_scr_act());
+    intercooler_ui_create();
+    lv_refr_now(NULL);
+}
 
 void Driver_Loop(void *parameter)
 {
     while(1)
     {
-        QMI8658_Loop();
+       // QMI8658_Loop();
         RTC_Loop();
         BAT_Get_Volts();
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -31,7 +40,7 @@ void Driver_Init(void)
     BAT_Init();
     I2C_Init();
     PCF85063_Init();
-    QMI8658_Init();
+   // QMI8658_Init();
     EXIO_Init();                    // Example Initialize EXIO
     xTaskCreatePinnedToCore(
         Driver_Loop, 
@@ -46,10 +55,13 @@ void app_main(void)
 {   
   //  Wireless_Init();
     Driver_Init();
-
+    vTaskDelay(pdMS_TO_TICKS(1000));
     LCD_Init();
+    vTaskDelay(pdMS_TO_TICKS(1000));
     Touch_Init();
+    vTaskDelay(pdMS_TO_TICKS(500));  // Give touch controller additional stabilization time
     SD_Init();
+    vTaskDelay(pdMS_TO_TICKS(500));  // Delay before starting LVGL polling
     LVGL_Init();
 /********************* Intercooler UI *********************/
     intercooler_ui_create();
