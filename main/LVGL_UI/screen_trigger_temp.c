@@ -106,13 +106,6 @@ lv_obj_t *screen_trigger_temp_create(lv_obj_t *parent)
     lv_obj_set_style_bg_color(slider, COLOR_TEXT_PRIMARY, LV_PART_KNOB);
     lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_ALL, NULL);
 
-    // Instructions label
-    lv_obj_t *instr_label = lv_label_create(container);
-    lv_label_set_text(instr_label, "Swipe right to return");
-    lv_obj_set_style_text_color(instr_label, COLOR_TEXT_SECONDARY, 0);
-    lv_obj_set_style_text_font(instr_label, fonts->small, 0);
-    lv_obj_set_style_pad_top(instr_label, 40, 0);
-
     return container;
 }
 

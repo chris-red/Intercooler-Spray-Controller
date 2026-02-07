@@ -53,6 +53,9 @@ void Driver_Init(void)
 }
 void app_main(void)
 {   
+    // Allow hardware (I2C expander, LCD) to stabilize after power-on/reset
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
   //  Wireless_Init();
     Driver_Init();
     LCD_Init();

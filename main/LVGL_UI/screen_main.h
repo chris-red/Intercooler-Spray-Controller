@@ -50,3 +50,9 @@ void screen_main_set_tank_empty(bool is_empty);
  * @param is_active True if relay is active
  */
 void screen_main_set_relay_active(bool is_active);
+
+/**
+ * Set power on indicator
+ * @param is_on True if system is powered on
+ */
+void screen_main_set_power_on(bool is_on);

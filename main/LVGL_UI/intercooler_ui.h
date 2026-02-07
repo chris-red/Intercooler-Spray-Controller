@@ -46,6 +46,12 @@ void intercooler_ui_set_tank_empty(bool is_empty);
 void intercooler_ui_set_relay_active(bool is_active);
 
 /**
+ * Set power on indicator
+ * @param is_on true if system is powered on, false otherwise
+ */
+void intercooler_ui_set_power_on(bool is_on);
+
+/**
  * Cleanup UI resources when exiting
  */
 void intercooler_ui_cleanup(void);

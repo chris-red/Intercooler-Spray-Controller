@@ -30,6 +30,11 @@ void intercooler_ui_set_relay_active(bool is_active)
     screen_main_set_relay_active(is_active);
 }
 
+void intercooler_ui_set_power_on(bool is_on)
+{
+    screen_main_set_power_on(is_on);
+}
+
 void intercooler_ui_cleanup(void)
 {
     // Cleanup handled by screen manager and individual screens

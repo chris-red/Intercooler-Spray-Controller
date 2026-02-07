@@ -7,6 +7,7 @@
  *  STATIC VARIABLES
  ***********************/
 static lv_obj_t *container = NULL;
+static lv_obj_t *icon_power = NULL;
 static lv_obj_t *lbl_temperature = NULL;
 static lv_obj_t *lbl_time = NULL;
 static lv_obj_t *icon_relay_active = NULL;
@@ -42,14 +43,22 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling - no scrollable content
     lv_obj_add_flag(container, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
 
+    // ===== POWER INDICATOR (top center) =====
+    icon_power = lv_label_create(container);
+    lv_label_set_text(icon_power, LV_SYMBOL_POWER);
+    lv_obj_set_style_text_font(icon_power, fonts->large, 0);
+    lv_obj_set_style_text_color(icon_power, COLOR_INDICATOR_OFF, 0);
+    lv_obj_set_style_pad_top(icon_power, 4, 0);
+    lv_obj_set_style_min_height(icon_power, 50, 0);
+
     // ===== TOP SECTION: Temperature Display =====
     lv_obj_t *temp_section = lv_obj_create(container);
-    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(65));
+    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(60));
     lv_obj_set_style_bg_color(temp_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(temp_section, 0, 0);
     lv_obj_set_style_pad_all(temp_section, 0, 0);
     lv_obj_set_flex_flow(temp_section, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(temp_section, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(temp_section, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(temp_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
     lv_obj_add_flag(temp_section, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
 
@@ -63,19 +72,20 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
 
     // ===== BOTTOM SECTION: Relay | Time | Tank (3 columns) =====
     lv_obj_t *bottom_section = lv_obj_create(container);
-    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(35));
+    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(30));
     lv_obj_set_style_bg_color(bottom_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(bottom_section, 0, 0);
     lv_obj_set_style_pad_ver(bottom_section, 2, 0);
     lv_obj_set_style_pad_hor(bottom_section, 60, 0);
+    lv_obj_set_style_pad_column(bottom_section, 0, 0);
     lv_obj_set_flex_flow(bottom_section, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(bottom_section, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(bottom_section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(bottom_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
     lv_obj_add_flag(bottom_section, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
 
     // --- Relay Indicator (left third) ---
     lv_obj_t *relay_container = lv_obj_create(bottom_section);
-    lv_obj_set_size(relay_container, LV_PCT(33), LV_SIZE_CONTENT);
+    lv_obj_set_size(relay_container, LV_PCT(30), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(relay_container, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(relay_container, 0, 0);
     lv_obj_set_style_pad_all(relay_container, 2, 0);
@@ -91,7 +101,7 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
 
     // --- Time Display (middle third) ---
     lv_obj_t *time_section = lv_obj_create(bottom_section);
-    lv_obj_set_size(time_section, LV_PCT(33), LV_SIZE_CONTENT);
+    lv_obj_set_size(time_section, LV_PCT(40), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(time_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(time_section, 0, 0);
     lv_obj_set_style_pad_all(time_section, 2, 0);
@@ -107,7 +117,7 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
 
     // --- Tank Empty Indicator (right third) ---
     lv_obj_t *tank_container = lv_obj_create(bottom_section);
-    lv_obj_set_size(tank_container, LV_PCT(33), LV_SIZE_CONTENT);
+    lv_obj_set_size(tank_container, LV_PCT(30), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(tank_container, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(tank_container, 0, 0);
     lv_obj_set_style_pad_all(tank_container, 2, 0);
@@ -142,6 +152,7 @@ void screen_main_destroy(void)
         container = NULL;
     }
     
+    icon_power = NULL;
     lbl_temperature = NULL;
     lbl_time = NULL;
     icon_relay_active = NULL;
@@ -211,5 +222,16 @@ void screen_main_set_relay_active(bool is_active)
         lv_obj_set_style_text_color(icon_relay_active, COLOR_ACCENT, 0);  // Blue spray
     } else {
         lv_obj_set_style_text_color(icon_relay_active, COLOR_INDICATOR_OFF, 0);  // Dim
+    }
+}
+
+void screen_main_set_power_on(bool is_on)
+{
+    if (!icon_power) return;
+
+    if (is_on) {
+        lv_obj_set_style_text_color(icon_power, COLOR_RELAY_ACTIVE, 0);  // Green
+    } else {
+        lv_obj_set_style_text_color(icon_power, COLOR_INDICATOR_OFF, 0);  // Dim
     }
 }

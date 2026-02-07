@@ -104,12 +104,24 @@ static void gesture_event_cb(lv_event_t *e)
     }
 }
 
+static void anim_ready_cb(lv_anim_t *a)
+{
+    lv_obj_t *obj = (lv_obj_t *)a->var;
+    // Snap to exact final position to prevent any drift
+    lv_obj_set_x(obj, 0);
+    lv_obj_set_y(obj, 0);
+}
+
 static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_transition_t transition)
 {
     ESP_LOGI(TAG, "animate_transition: out=%p in=%p transition=%d", (void*)out_obj, (void*)in_obj, transition);
     if (transition == SCREEN_TRANSITION_NONE) {
         if (out_obj) lv_obj_add_flag(out_obj, LV_OBJ_FLAG_HIDDEN);
-        if (in_obj) lv_obj_clear_flag(in_obj, LV_OBJ_FLAG_HIDDEN);
+        if (in_obj) {
+            lv_obj_set_x(in_obj, 0);
+            lv_obj_set_y(in_obj, 0);
+            lv_obj_clear_flag(in_obj, LV_OBJ_FLAG_HIDDEN);
+        }
         return;
     }
     
@@ -122,6 +134,8 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
         lv_anim_init(&a);
         lv_anim_set_var(&a, in_obj);
         lv_anim_set_time(&a, 300);
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+        lv_anim_set_ready_cb(&a, anim_ready_cb);
         
         if (transition == SCREEN_TRANSITION_SLIDE_DOWN) {
             lv_obj_set_y(in_obj, -screen_height);
@@ -147,6 +161,9 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
     
     if (out_obj) {
         lv_obj_add_flag(out_obj, LV_OBJ_FLAG_HIDDEN);
+        // Reset outgoing screen position so it's clean if reused
+        lv_obj_set_x(out_obj, 0);
+        lv_obj_set_y(out_obj, 0);
     }
 }
 

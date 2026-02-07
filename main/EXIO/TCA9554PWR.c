@@ -1,14 +1,26 @@
 #include "TCA9554PWR.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+static const char *EXIO_TAG = "EXIO";
+
 /*****************************************************  Operation register REG   ****************************************************/   
 uint8_t Read_REG(uint8_t REG)                                // Read the value of the TCA9554PWR register REG
 {
     uint8_t bitsStatus = 0;
-    I2C_Read(TCA9554_ADDRESS, REG, &bitsStatus, 1);
+    esp_err_t ret = I2C_Read(TCA9554_ADDRESS, REG, &bitsStatus, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGW(EXIO_TAG, "Read_REG(0x%02X) failed: %s", REG, esp_err_to_name(ret));
+    }
     return bitsStatus;
 }
 void Write_REG(uint8_t REG,uint8_t Data)                    // Write Data to the REG register of the TCA9554PWR
 {
-    I2C_Write(TCA9554_ADDRESS, REG, &Data, 1);
+    esp_err_t ret = I2C_Write(TCA9554_ADDRESS, REG, &Data, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGW(EXIO_TAG, "Write_REG(0x%02X, 0x%02X) failed: %s", REG, Data, esp_err_to_name(ret));
+    }
 }
 /********************************************************** Set EXIO mode **********************************************************/       
 void Mode_EXIO(uint8_t Pin,uint8_t State)                 // Set the mode of the TCA9554PWR Pin. The default is Output mode (output mode or input mode). State: 0= Output mode 1= input mode    
@@ -88,7 +100,34 @@ void TCA9554PWR_Init(uint8_t PinState)                  // Set the seven pins to
 
 esp_err_t EXIO_Init(void)
 {
+    /* Retry I2C communication with TCA9554 up to 10 times.
+     * On cold boot the I/O expander may not be ready when the ESP32 starts.
+     * Without verification, all LCD reset/CS commands fail silently. */
+    esp_err_t ret = ESP_FAIL;
+    for (int attempt = 0; attempt < 10; attempt++) {
+        uint8_t test_val = 0;
+        ret = I2C_Read(TCA9554_ADDRESS, TCA9554_CONFIG_REG, &test_val, 1);
+        if (ret == ESP_OK) {
+            ESP_LOGI(EXIO_TAG, "TCA9554 responded on attempt %d (config=0x%02X)", attempt + 1, test_val);
+            break;
+        }
+        ESP_LOGW(EXIO_TAG, "TCA9554 not responding (attempt %d/10): %s", attempt + 1, esp_err_to_name(ret));
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    if (ret != ESP_OK) {
+        ESP_LOGE(EXIO_TAG, "TCA9554 FAILED to respond after 10 attempts — LCD will not work!");
+        return ret;
+    }
+
     TCA9554PWR_Init(0x00);
+
+    /* Verify the config register was actually written */
+    uint8_t verify = 0xFF;
+    I2C_Read(TCA9554_ADDRESS, TCA9554_CONFIG_REG, &verify, 1);
+    if (verify != 0x00) {
+        ESP_LOGE(EXIO_TAG, "TCA9554 config verify failed: expected 0x00, got 0x%02X", verify);
+    }
+
     Buzzer_Off();
     return ESP_OK;
 }

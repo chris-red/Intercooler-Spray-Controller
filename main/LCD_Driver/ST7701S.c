@@ -371,10 +371,12 @@ void ST7701S_WriteData(ST7701S_handle St7701S_handle, uint8_t data)
 
 esp_err_t ST7701S_reset(void)
 {
+    ESP_LOGI(LCD_TAG, "ST7701S reset: pulling EXIO1 LOW");
     Set_EXIO(TCA9554_EXIO1,false);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(50));    // Hold reset LOW — generous pulse
+    ESP_LOGI(LCD_TAG, "ST7701S reset: releasing EXIO1 HIGH");
     Set_EXIO(TCA9554_EXIO1,true);
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(200));   // Wait for ST7701S internal POR to complete
     return ESP_OK;
 }
 
@@ -411,15 +413,33 @@ static bool example_on_vsync_event(esp_lcd_panel_handle_t panel, const esp_lcd_r
 }
 
 esp_lcd_panel_handle_t panel_handle = NULL;
+static ST7701S_handle st7701s_spi = NULL;   // Keep SPI handle for re-init
+
 void LCD_Init(void)
 {
-    /********************* LCD *********************/
+    /********************* ST7701S SPI configuration (BEFORE RGB clock) *********************/
+    /* The ST7701S must receive its full register config via SPI before the
+     * RGB panel starts sending pixel clocks. Configure it twice (double-init)
+     * for reliability — this is a well-known workaround for ST7701S displays
+     * that sometimes fail to latch SPI config on cold boot. */
+
+    ESP_LOGI(LCD_TAG, "=== LCD Init: Pass 1 — initial ST7701S config ===");
     ST7701S_reset();
     ST7701S_CS_EN();
-    vTaskDelay(pdMS_TO_TICKS(100));
-    ST7701S_handle st7701s = ST7701S_newObject(LCD_MOSI, LCD_SCLK, LCD_CS, SPI2_HOST, SPI_METHOD);
-    
-    ST7701S_screen_init(st7701s, 1);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    st7701s_spi = ST7701S_newObject(LCD_MOSI, LCD_SCLK, LCD_CS, SPI2_HOST, SPI_METHOD);
+    ST7701S_screen_init(st7701s_spi, 1);
+
+    /* Double-init: reset the ST7701S and send config again.
+     * The first pass primes the internal state machine; the second
+     * pass ensures all registers are latched correctly. */
+    ESP_LOGI(LCD_TAG, "=== LCD Init: Pass 2 — re-init ST7701S for reliability ===");
+    ST7701S_reset();
+    ST7701S_screen_init(st7701s_spi, 1);
+    ST7701S_CS_Dis();
+
+    /********************* RGB LCD panel driver *********************/
     #if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
         ESP_LOGI(LCD_TAG, "Create semaphores");
         sem_vsync_end = xSemaphoreCreateBinary();
@@ -428,7 +448,6 @@ void LCD_Init(void)
         assert(sem_gui_ready);
     #endif
 
-    /********************* RGB LCD panel driver *********************/
     ESP_LOGI(LCD_TAG, "Install RGB LCD panel driver");
     esp_lcd_rgb_panel_config_t panel_config = {
         .data_width = 16, // RGB565 in parallel mode, thus 16bit in width
@@ -486,7 +505,18 @@ void LCD_Init(void)
     ESP_LOGI(LCD_TAG, "Initialize RGB LCD panel");
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
+
+    /* After RGB panel init starts the pixel clock, re-send ST7701S config
+     * one final time. Some ST7701S panels need re-configuration after the
+     * RGB clock starts to properly sync the display engine. */
+    ESP_LOGI(LCD_TAG, "=== LCD Init: Pass 3 — post-RGB ST7701S re-config ===");
+    vTaskDelay(pdMS_TO_TICKS(100));  // Let RGB clock stabilize
+    ST7701S_CS_EN();
+    vTaskDelay(pdMS_TO_TICKS(10));
+    ST7701S_screen_init(st7701s_spi, 1);
     ST7701S_CS_Dis();
+
+    ESP_LOGI(LCD_TAG, "LCD initialization complete");
     Backlight_Init();
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
