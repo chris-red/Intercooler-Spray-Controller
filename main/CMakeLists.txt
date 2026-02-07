@@ -9,6 +9,7 @@ idf_component_register(
                               "PCF85063/PCF85063.c"
                               "QMI8658/QMI8658.c"
                               "SD_Card/SD_MMC.c"
+                              "LVGL_UI/LVGL_Example.c"
                               "LVGL_UI/intercooler_ui.c"
                               "LVGL_UI/ui_common.c"
                               "LVGL_UI/screen_manager.c"
