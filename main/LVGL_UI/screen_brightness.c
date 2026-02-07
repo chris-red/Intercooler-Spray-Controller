@@ -1,18 +1,13 @@
 #include "screen_brightness.h"
 #include "ui_common.h"
 #include "screen_manager.h"
-#include "driver/ledc.h"
-#include "driver/gpio.h"
+#include "ST7701S.h"  // For Set_Backlight() and LCD_Backlight
 
 /***********************
  *  DEFINES
  ***********************/
-#define BRIGHTNESS_GPIO     GPIO_NUM_6
-#define LEDC_TIMER          LEDC_TIMER_0
-#define LEDC_MODE           LEDC_LOW_SPEED_MODE
-#define LEDC_CHANNEL        LEDC_CHANNEL_0
-#define LEDC_DUTY_RES       LEDC_TIMER_8_BIT  // 8-bit resolution (0-255)
-#define LEDC_FREQUENCY      5000              // 5 kHz PWM frequency
+// Set_Backlight() takes 0-100, slider uses 0-100 directly
+#define BRIGHTNESS_MAX 100
 
 /***********************
  *  STATIC VARIABLES
@@ -20,58 +15,23 @@
 static lv_obj_t *container = NULL;
 static lv_obj_t *brightness_slider = NULL;
 static lv_obj_t *brightness_value_label = NULL;
-static uint8_t current_brightness = 128;  // Default 50%
-static bool pwm_initialized = false;
+static uint8_t current_brightness = 70;  // Default matches LCD_Backlight init value
 
 /***********************
  *  STATIC PROTOTYPES
  ***********************/
 static void brightness_slider_event_cb(lv_event_t *e);
-static void init_pwm(void);
-static void set_brightness_pwm(uint8_t brightness);
+static void set_brightness(uint8_t brightness);
 
 /***********************
  *  IMPLEMENTATIONS
  ***********************/
 
-static void init_pwm(void)
+static void set_brightness(uint8_t brightness)
 {
-    if (pwm_initialized) return;
-    
-    // Configure LEDC timer
-    ledc_timer_config_t ledc_timer = {
-        .speed_mode       = LEDC_MODE,
-        .timer_num        = LEDC_TIMER,
-        .duty_resolution  = LEDC_DUTY_RES,
-        .freq_hz          = LEDC_FREQUENCY,
-        .clk_cfg          = LEDC_AUTO_CLK
-    };
-    ledc_timer_config(&ledc_timer);
-
-    // Configure LEDC channel
-    ledc_channel_config_t ledc_channel = {
-        .speed_mode     = LEDC_MODE,
-        .channel        = LEDC_CHANNEL,
-        .timer_sel      = LEDC_TIMER,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = BRIGHTNESS_GPIO,
-        .duty           = current_brightness,
-        .hpoint         = 0
-    };
-    ledc_channel_config(&ledc_channel);
-    
-    pwm_initialized = true;
-}
-
-static void set_brightness_pwm(uint8_t brightness)
-{
-    if (!pwm_initialized) {
-        init_pwm();
-    }
-    
+    if (brightness > BRIGHTNESS_MAX) brightness = BRIGHTNESS_MAX;
     current_brightness = brightness;
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, brightness);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+    Set_Backlight(brightness);  // Use existing backlight driver (0-100)
 }
 
 static void brightness_slider_event_cb(lv_event_t *e)
@@ -93,8 +53,7 @@ static void brightness_slider_event_cb(lv_event_t *e)
             // Only update if value actually changed to reduce redraws
             if (value != last_value) {
                 char buf[16];
-                int percent = (value * 100) / 255;
-                snprintf(buf, sizeof(buf), "%d%%", percent);
+                snprintf(buf, sizeof(buf), "%d%%", (int)value);
                 lv_label_set_text(brightness_value_label, buf);
                 last_value = value;
             }
@@ -102,7 +61,7 @@ static void brightness_slider_event_cb(lv_event_t *e)
         
         // Update PWM only on release
         if (code == LV_EVENT_RELEASED) {
-            set_brightness_pwm((uint8_t)value);
+            set_brightness((uint8_t)value);
         }
     }
 }
@@ -111,8 +70,8 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
 {
     const ui_fonts_t *fonts = ui_common_get_fonts();
     
-    // Initialize PWM for brightness control
-    init_pwm();
+    // Sync with current backlight value
+    current_brightness = LCD_Backlight;
     
     // ===== Create container =====
     container = lv_obj_create(parent);
@@ -141,7 +100,7 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
     // Value display label
     brightness_value_label = lv_label_create(container);
     char buf[16];
-    snprintf(buf, sizeof(buf), "%d%%", (int)((current_brightness * 100) / 255));
+    snprintf(buf, sizeof(buf), "%d%%", (int)current_brightness);
     lv_label_set_text(brightness_value_label, buf);
     lv_obj_set_style_text_color(brightness_value_label, COLOR_ACCENT, 0);
     lv_obj_set_style_text_font(brightness_value_label, fonts->large, 0);
@@ -154,7 +113,7 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
 
     // Brightness slider
     brightness_slider = lv_slider_create(container);
-    lv_slider_set_range(brightness_slider, 0, 255);
+    lv_slider_set_range(brightness_slider, 0, BRIGHTNESS_MAX);
     lv_slider_set_value(brightness_slider, current_brightness, LV_ANIM_OFF);
     lv_obj_set_size(brightness_slider, 280, 30);
     lv_obj_set_style_bg_color(brightness_slider, lv_color_hex(0x333333), LV_PART_MAIN);

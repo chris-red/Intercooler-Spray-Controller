@@ -1,6 +1,9 @@
 #include "screen_manager.h"
 #include "screen_main.h"
 #include "screen_brightness.h"
+#include "screen_trigger_temp.h"
+#include "screen_spray_duration.h"
+#include "screen_spray_interval.h"
 #include "ui_common.h"
 
 /***********************
@@ -14,6 +17,9 @@ static lv_timer_t *inactivity_timer = NULL;
 // Inactivity timeout in milliseconds (15 seconds)
 #define INACTIVITY_TIMEOUT_MS 15000
 
+// Minimum time between screen transitions (ms) to prevent accidental double-swipe
+#define NAV_COOLDOWN_MS 400
+
 /***********************
  *  STATIC PROTOTYPES
  ***********************/
@@ -21,21 +27,50 @@ static void inactivity_timer_cb(lv_timer_t *timer);
 static void gesture_event_cb(lv_event_t *e);
 static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_transition_t transition);
 static void cleanup_screen(screen_id_t screen);
+static bool nav_cooldown_check(void);
 
 /***********************
  *  IMPLEMENTATIONS
  ***********************/
 
+static uint32_t last_nav_time = 0;
+
+static bool nav_cooldown_check(void)
+{
+    uint32_t now = lv_tick_get();
+    if (now - last_nav_time < NAV_COOLDOWN_MS) {
+        return false;  // Still in cooldown
+    }
+    last_nav_time = now;
+    return true;
+}
+
 static void inactivity_timer_cb(lv_timer_t *timer)
 {
-    // Return to main screen after inactivity
-    if (current_screen != SCREEN_ID_MAIN) {
+    // Return to main screen after inactivity with correct transition direction
+    if (current_screen == SCREEN_ID_BRIGHTNESS) {
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
+    } else if (current_screen != SCREEN_ID_MAIN) {
+        screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_RIGHT);
     }
 }
 
 static void gesture_event_cb(lv_event_t *e)
 {
+    // Don't navigate if a slider is the currently pressed object
+    lv_indev_t *indev = lv_indev_get_act();
+    if (indev) {
+        lv_obj_t *obj_act = lv_indev_get_obj_act();
+        if (obj_act && lv_obj_check_type(obj_act, &lv_slider_class)) {
+            return;  // Slider is being dragged, ignore gesture
+        }
+    }
+
+    // Cooldown guard to prevent accidental rapid transitions
+    if (!nav_cooldown_check()) {
+        return;
+    }
+
     screen_manager_reset_inactivity();
     
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
@@ -46,6 +81,24 @@ static void gesture_event_cb(lv_event_t *e)
     } else if (current_screen == SCREEN_ID_BRIGHTNESS && dir == LV_DIR_TOP) {
         // Swipe up from brightness -> main
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
+    } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_LEFT) {
+        // Swipe left from main -> trigger temp
+        screen_manager_navigate(SCREEN_ID_TRIGGER_TEMP, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_TRIGGER_TEMP && dir == LV_DIR_RIGHT) {
+        // Swipe right from trigger temp -> main
+        screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_TRIGGER_TEMP && dir == LV_DIR_LEFT) {
+        // Swipe left from trigger temp -> spray duration
+        screen_manager_navigate(SCREEN_ID_SPRAY_DURATION, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_SPRAY_DURATION && dir == LV_DIR_RIGHT) {
+        // Swipe right from spray duration -> trigger temp
+        screen_manager_navigate(SCREEN_ID_TRIGGER_TEMP, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_SPRAY_DURATION && dir == LV_DIR_LEFT) {
+        // Swipe left from spray duration -> spray interval
+        screen_manager_navigate(SCREEN_ID_SPRAY_INTERVAL, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_SPRAY_INTERVAL && dir == LV_DIR_RIGHT) {
+        // Swipe right from spray interval -> spray duration
+        screen_manager_navigate(SCREEN_ID_SPRAY_DURATION, SCREEN_TRANSITION_SLIDE_RIGHT);
     }
 }
 
@@ -58,6 +111,7 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
     }
     
     lv_coord_t screen_height = lv_disp_get_ver_res(NULL);
+    lv_coord_t screen_width = lv_disp_get_hor_res(NULL);
     
     // Simple slide animation
     if (in_obj) {
@@ -69,12 +123,21 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
         if (transition == SCREEN_TRANSITION_SLIDE_DOWN) {
             lv_obj_set_y(in_obj, -screen_height);
             lv_anim_set_values(&a, -screen_height, 0);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
         } else if (transition == SCREEN_TRANSITION_SLIDE_UP) {
             lv_obj_set_y(in_obj, screen_height);
             lv_anim_set_values(&a, screen_height, 0);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+        } else if (transition == SCREEN_TRANSITION_SLIDE_LEFT) {
+            lv_obj_set_x(in_obj, screen_width);
+            lv_anim_set_values(&a, screen_width, 0);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_x);
+        } else if (transition == SCREEN_TRANSITION_SLIDE_RIGHT) {
+            lv_obj_set_x(in_obj, -screen_width);
+            lv_anim_set_values(&a, -screen_width, 0);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_x);
         }
         
-        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
         lv_obj_clear_flag(in_obj, LV_OBJ_FLAG_HIDDEN);
         lv_anim_start(&a);
     }
@@ -93,6 +156,15 @@ static void cleanup_screen(screen_id_t screen)
                 break;
             case SCREEN_ID_BRIGHTNESS:
                 screen_brightness_destroy();
+                break;
+            case SCREEN_ID_TRIGGER_TEMP:
+                screen_trigger_temp_destroy();
+                break;
+            case SCREEN_ID_SPRAY_DURATION:
+                screen_spray_duration_destroy();
+                break;
+            case SCREEN_ID_SPRAY_INTERVAL:
+                screen_spray_interval_destroy();
                 break;
             default:
                 break;
@@ -117,6 +189,16 @@ void screen_manager_init(void)
     // Enable gesture navigation
     screen_manager_enable_gestures();
     
+    // Increase gesture detection threshold for more reliable swipes
+    lv_indev_t *indev = NULL;
+    while ((indev = lv_indev_get_next(indev)) != NULL) {
+        if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {
+            indev->driver->gesture_limit = 80;       // Require longer swipe (default 50)
+            indev->driver->gesture_min_velocity = 4;  // Slightly higher velocity threshold
+            break;
+        }
+    }
+    
     // Start inactivity timer
     screen_manager_reset_inactivity();
 }
@@ -136,6 +218,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_BRIGHTNESS:
                 screen_containers[screen] = screen_brightness_create(screen_root);
                 break;
+            case SCREEN_ID_TRIGGER_TEMP:
+                screen_containers[screen] = screen_trigger_temp_create(screen_root);
+                break;
+            case SCREEN_ID_SPRAY_DURATION:
+                screen_containers[screen] = screen_spray_duration_create(screen_root);
+                break;
+            case SCREEN_ID_SPRAY_INTERVAL:
+                screen_containers[screen] = screen_spray_interval_create(screen_root);
+                break;
             default:
                 return;
         }
@@ -153,6 +244,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_BRIGHTNESS:
                 screen_brightness_hide();
                 break;
+            case SCREEN_ID_TRIGGER_TEMP:
+                screen_trigger_temp_hide();
+                break;
+            case SCREEN_ID_SPRAY_DURATION:
+                screen_spray_duration_hide();
+                break;
+            case SCREEN_ID_SPRAY_INTERVAL:
+                screen_spray_interval_hide();
+                break;
             default:
                 break;
         }
@@ -165,6 +265,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             break;
         case SCREEN_ID_BRIGHTNESS:
             screen_brightness_show();
+            break;
+        case SCREEN_ID_TRIGGER_TEMP:
+            screen_trigger_temp_show();
+            break;
+        case SCREEN_ID_SPRAY_DURATION:
+            screen_spray_duration_show();
+            break;
+        case SCREEN_ID_SPRAY_INTERVAL:
+            screen_spray_interval_show();
             break;
         default:
             break;

@@ -95,7 +95,7 @@ static esp_err_t read_data(esp_lcd_touch_handle_t tp)
     assert(tp != NULL);
 
     uint8_t write_buf = 0x01;
-    i2c_master_write_to_device(0, DATA_START_REG, &write_buf, 1, 1000 / portTICK_PERIOD_MS);
+    I2C_Write(ESP_LCD_TOUCH_IO_I2C_CST820_ADDRESS, write_buf, NULL, 0);
 
     touch_cst820_i2c_write(tp, 0xFE, &close, 1);
 
@@ -229,7 +229,7 @@ void Touch_Init(void)
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST820_CONFIG();
     ESP_LOGI(TAG, "Initialize touch IO (I2C)");
     /* Touch IO handle */
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_MASTER_NUM, &tp_io_config, &tp_io_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &tp_io_handle));
     esp_lcd_touch_config_t tp_cfg = {
         .x_max = EXAMPLE_LCD_V_RES,
         .y_max = EXAMPLE_LCD_H_RES,

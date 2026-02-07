@@ -7,6 +7,9 @@
 #include "screen_manager.h"
 #include "screen_main.h"
 #include "screen_brightness.h"
+#include "screen_trigger_temp.h"
+#include "screen_spray_duration.h"
+#include "screen_spray_interval.h"
 
 /***********************
  *  FUNCTION DECLARATIONS

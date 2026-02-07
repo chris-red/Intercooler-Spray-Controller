@@ -10,7 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "esp_system.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -49,6 +49,7 @@ esp_err_t esp_lcd_touch_new_i2c_cst820(const esp_lcd_panel_io_handle_t io, const
 #define ESP_LCD_TOUCH_IO_I2C_CST820_CONFIG()             \
     {                                                    \
         .dev_addr = ESP_LCD_TOUCH_IO_I2C_CST820_ADDRESS, \
+        .scl_speed_hz = 400000,                          \
         .control_phase_bytes = 1,                        \
         .dc_bit_offset = 0,                              \
         .lcd_cmd_bits = 8,                               \

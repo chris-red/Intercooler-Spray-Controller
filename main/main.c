@@ -55,16 +55,14 @@ void app_main(void)
 {   
   //  Wireless_Init();
     Driver_Init();
-    vTaskDelay(pdMS_TO_TICKS(1000));
     LCD_Init();
-    vTaskDelay(pdMS_TO_TICKS(1000));
     Touch_Init();
-    vTaskDelay(pdMS_TO_TICKS(500));  // Give touch controller additional stabilization time
     SD_Init();
-    vTaskDelay(pdMS_TO_TICKS(500));  // Delay before starting LVGL polling
     LVGL_Init();
+    printf("init complete\n");
 /********************* Intercooler UI *********************/
     intercooler_ui_create();
+    printf("UI created\n");
 
     // lv_demo_widgets();
     // lv_demo_keypad_encoder();
