@@ -180,7 +180,7 @@ void screen_main_update_temperature(float temp_celsius)
     if (!lbl_temperature) return;
 
     char temp_str[20];
-    snprintf(temp_str, sizeof(temp_str), "%.1f°", temp_celsius);
+    snprintf(temp_str, sizeof(temp_str), "%.0f°", temp_celsius);
 
     lv_color_t color = COLOR_TEMP_NORMAL;
     if (temp_celsius >= 50.0f) {

@@ -125,7 +125,7 @@ void screen_trigger_temp_show(void)
     if (slider) {
         lv_slider_set_value(slider, g_trigger_temperature, LV_ANIM_OFF);
     }
-}
+ }
 
 void screen_trigger_temp_hide(void)
 {

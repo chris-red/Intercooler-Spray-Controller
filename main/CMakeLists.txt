@@ -21,6 +21,8 @@ idf_component_register(
                               "Wireless/Wireless.c"
                               "Buzzer/Buzzer.c"
                               "BAT_Driver/BAT_Driver.c"
+                              "Thermistor/Thermistor.c"
+                              "Buttons/Buttons.c"
 
                         INCLUDE_DIRS "./EXIO"
                                      "./LCD_Driver"
@@ -35,5 +37,7 @@ idf_component_register(
                                      "./Wireless"
                                      "./Buzzer"
                                      "./BAT_Driver"
+                                     "./Thermistor"
+                                     "./Buttons"
                                      "."
                         )
