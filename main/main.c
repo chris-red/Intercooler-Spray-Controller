@@ -20,9 +20,11 @@
 
 // Redraw the entire screen by clearing and recreating the UI
 void refresh_screen(void) {
+    lvgl_port_lock(0);
     lv_obj_clean(lv_scr_act());
     intercooler_ui_create();
     lv_refr_now(NULL);
+    lvgl_port_unlock();
 }
 
 void Driver_Loop(void *parameter)
@@ -47,20 +49,29 @@ void Driver_Loop(void *parameter)
             therm_log_counter = 0;
         }
         if (temp > -900.0f) {  // Valid reading
-            intercooler_ui_update_temperature(temp);
+            if (lvgl_port_lock(0)) {
+                intercooler_ui_update_temperature(temp);
+                lvgl_port_unlock();
+            }
         }
 
 #if ENABLE_BUTTONS
         // --- Read buttons and update UI ---
         bool power_on = Button_Power_GetState();
         if (power_on != prev_power_state) {
-            intercooler_ui_set_power_on(power_on);
+            if (lvgl_port_lock(0)) {
+                intercooler_ui_set_power_on(power_on);
+                lvgl_port_unlock();
+            }
             prev_power_state = power_on;
         }
 
         bool tank_empty = Button_Tank_GetState();
         if (tank_empty != prev_tank_state) {
-            intercooler_ui_set_tank_empty(tank_empty);
+            if (lvgl_port_lock(0)) {
+                intercooler_ui_set_tank_empty(tank_empty);
+                lvgl_port_unlock();
+            }
             prev_tank_state = tank_empty;
         }
 #endif
@@ -106,13 +117,17 @@ void app_main(void)
     LVGL_Init();
     printf("init complete\n");
 /********************* Intercooler UI *********************/
+    lvgl_port_lock(0);
     intercooler_ui_create();
+    lvgl_port_unlock();
     printf("UI created\n");
 
     while (1) {
         // raise the task priority of LVGL and/or reduce the handler period can improve the performance
         vTaskDelay(pdMS_TO_TICKS(10));
         // The task running lv_timer_handler should have lower priority than that running `lv_tick_inc`
+        lvgl_port_lock(0);
         lv_timer_handler();
+        lvgl_port_unlock();
     }
 }

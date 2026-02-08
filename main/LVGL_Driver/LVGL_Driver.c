@@ -1,4 +1,6 @@
 #include "LVGL_Driver.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 static const char *LVGL_TAG = "LVGL";   
 lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
@@ -7,6 +9,8 @@ lv_disp_drv_t disp_drv;      // contains callback functions
 lv_indev_drv_t indev_drv;
 esp_timer_handle_t lvgl_tick_timer = NULL;
 
+/* Mutex to protect all LVGL API calls from concurrent access */
+static SemaphoreHandle_t lvgl_mutex = NULL;
 
 static void *buf1 = NULL;
 static void *buf2 = NULL;             
@@ -122,4 +126,26 @@ void LVGL_Init(void)
     ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(lvgl_tick_timer, EXAMPLE_LVGL_TICK_PERIOD_MS * 1000));
 
+    /* Create mutex for LVGL thread safety */
+    lvgl_mutex = xSemaphoreCreateRecursiveMutex();
+    assert(lvgl_mutex);
+    ESP_LOGI(LVGL_TAG, "LVGL mutex created for thread-safe access");
+}
+
+bool lvgl_port_lock(uint32_t timeout_ms)
+{
+    /* If LVGL_Init() hasn't been called yet, report lock failure instead of crashing.
+       This allows tasks started before LVGL_Init() to safely skip UI updates. */
+    if (lvgl_mutex == NULL) {
+        return false;
+    }
+    const TickType_t timeout_ticks = (timeout_ms == 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+    return xSemaphoreTakeRecursive(lvgl_mutex, timeout_ticks) == pdTRUE;
+}
+
+void lvgl_port_unlock(void)
+{
+    if (lvgl_mutex != NULL) {
+        xSemaphoreGiveRecursive(lvgl_mutex);
+    }
 }

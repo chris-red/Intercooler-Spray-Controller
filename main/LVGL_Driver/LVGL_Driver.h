@@ -20,3 +20,16 @@ void example_increase_lvgl_tick(void *arg);
 void example_touchpad_read( lv_indev_drv_t * drv, lv_indev_data_t * data );
 
 void LVGL_Init(void);
+
+/**
+ * Lock the LVGL mutex. Must be called before any LVGL API usage from
+ * tasks other than the one running lv_timer_handler().
+ * @param timeout_ms Timeout in ms (0 = wait forever)
+ * @return true if the lock was acquired
+ */
+bool lvgl_port_lock(uint32_t timeout_ms);
+
+/**
+ * Unlock the LVGL mutex. Must be called after LVGL API usage is complete.
+ */
+void lvgl_port_unlock(void);
