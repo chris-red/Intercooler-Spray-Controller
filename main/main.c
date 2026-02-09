@@ -9,13 +9,18 @@
 #include "ST7701S.h"
 ////#include "CST820.h"
 #include "SD_MMC.h"
+#include "SD_Logger.h"
+#include "Settings.h"
 #include "LVGL_Driver.h"
 #include "LVGL_Example.h"
 #include "intercooler_ui.h"
 //#include "Wireless.h"
 #include "lvgl.h"
+#include "esp_log.h"
 #include "Thermistor.h"
 #include "Buttons.h"
+
+static const char *TAG = "main";
 
 
 // Redraw the entire screen by clearing and recreating the UI
@@ -44,15 +49,16 @@ void Driver_Loop(void *parameter)
         // --- Read thermistor and update UI ---
         float temp = Thermistor_ReadTemp();
         int raw_mv = Thermistor_ReadRawMV();
-        if (++therm_log_counter >= 20) {  // Log every 2 seconds (20 x 100ms)
-            printf("Thermistor: %d mV, %.1f°C\n", raw_mv, temp);
+        if (++therm_log_counter >= 20) {  // Log every 2 seconds (2 x 1000ms)
+            ESP_LOGI(TAG, "Thermistor: %d mV, %.1f°C", raw_mv, temp);
             therm_log_counter = 0;
-        }
+        
         if (temp > -900.0f) {  // Valid reading
             if (lvgl_port_lock(0)) {
                 intercooler_ui_update_temperature(temp);
                 lvgl_port_unlock();
             }
+        }
         }
 
 #if ENABLE_BUTTONS
@@ -88,12 +94,12 @@ void Driver_Init(void)
     PCF85063_Init();
    // QMI8658_Init();
     EXIO_Init();                    // Example Initialize EXIO
-    printf("EXIO init done, starting Thermistor...\n");
+    ESP_LOGI(TAG, "EXIO init done, starting Thermistor...");
     Thermistor_Init();               // Initialize thermistor ADC on GPIO19
-    printf("Thermistor init done\n");
+    ESP_LOGI(TAG, "Thermistor init done");
 #if ENABLE_BUTTONS
     Buttons_Init();                  // Initialize buttons on GPIO43/44 (disables UART!)
-    printf("Buttons init done\n");
+    ESP_LOGI(TAG, "Buttons init done");
 #endif
     xTaskCreatePinnedToCore(
         Driver_Loop, 
@@ -113,14 +119,30 @@ void app_main(void)
     Driver_Init();
     LCD_Init();
     Touch_Init();
-    SD_Init();
+    // Try SD card init with retries
+    esp_err_t sd_ret = ESP_FAIL;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        sd_ret = SD_Init();
+        if (sd_ret == ESP_OK) break;
+        ESP_LOGW(TAG, "SD card init attempt %d/3 failed, retrying...", attempt);
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    if (sd_ret == ESP_OK) {
+        settings_load();             // Load saved settings from SD card
+        SD_Logger_Init(0);           // Start logging to SD card (0 = default 1s sync)
+    } else {
+        ESP_LOGW(TAG, "SD card not available - logging to serial only");
+    }
     LVGL_Init();
-    printf("init complete\n");
+    ESP_LOGI(TAG, "init complete");
 /********************* Intercooler UI *********************/
+
     lvgl_port_lock(0);
     intercooler_ui_create();
+    // Ensure brightness UI matches loaded value after widgets are created
+    screen_brightness_update_ui();
     lvgl_port_unlock();
-    printf("UI created\n");
+    ESP_LOGI(TAG, "UI created");
 
     while (1) {
         // raise the task priority of LVGL and/or reduce the handler period can improve the performance

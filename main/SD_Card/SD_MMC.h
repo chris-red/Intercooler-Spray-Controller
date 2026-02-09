@@ -28,5 +28,5 @@ esp_err_t s_example_read_file(const char *path);
 
 extern uint32_t SDCard_Size;
 extern uint32_t Flash_Size;
-void SD_Init(void);
+esp_err_t SD_Init(void);
 void Flash_Searching(void);

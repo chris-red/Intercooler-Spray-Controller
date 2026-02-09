@@ -10,28 +10,43 @@
 #define BRIGHTNESS_MAX 100
 
 /***********************
+ *  GLOBAL VARIABLES
+ ***********************/
+uint8_t g_brightness;
+
+/***********************
  *  STATIC VARIABLES
  ***********************/
 static lv_obj_t *container = NULL;
 static lv_obj_t *brightness_slider = NULL;
 static lv_obj_t *brightness_value_label = NULL;
-static uint8_t current_brightness = 70;  // Default matches LCD_Backlight init value
+
+void screen_brightness_update_ui(void)
+{
+    if (brightness_slider) {
+        lv_slider_set_value(brightness_slider, g_brightness, LV_ANIM_OFF);
+    }
+    if (brightness_value_label) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d%%", (int)g_brightness);
+        lv_label_set_text(brightness_value_label, buf);
+    }
+}
 
 /***********************
  *  STATIC PROTOTYPES
  ***********************/
 static void brightness_slider_event_cb(lv_event_t *e);
-static void set_brightness(uint8_t brightness);
 
 /***********************
  *  IMPLEMENTATIONS
  ***********************/
 
-static void set_brightness(uint8_t brightness)
+void set_brightness(uint8_t new_brightness)
 {
-    if (brightness > BRIGHTNESS_MAX) brightness = BRIGHTNESS_MAX;
-    current_brightness = brightness;
-    Set_Backlight(brightness);  // Use existing backlight driver (0-100)
+    if (new_brightness > BRIGHTNESS_MAX) new_brightness = BRIGHTNESS_MAX;
+    g_brightness = new_brightness;
+    Set_Backlight(new_brightness);  // Use existing backlight driver (0-100)
 }
 
 static void brightness_slider_event_cb(lv_event_t *e)
@@ -71,7 +86,7 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
     const ui_fonts_t *fonts = ui_common_get_fonts();
     
     // Sync with current backlight value
-    current_brightness = LCD_Backlight;
+    g_brightness = LCD_Backlight;
     
     // ===== Create container =====
     container = lv_obj_create(parent);
@@ -100,7 +115,7 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
     // Value display label
     brightness_value_label = lv_label_create(container);
     char buf[16];
-    snprintf(buf, sizeof(buf), "%d%%", (int)current_brightness);
+    snprintf(buf, sizeof(buf), "%d%%", (int)g_brightness);
     lv_label_set_text(brightness_value_label, buf);
     lv_obj_set_style_text_color(brightness_value_label, COLOR_ACCENT, 0);
     lv_obj_set_style_text_font(brightness_value_label, fonts->large, 0);
@@ -113,8 +128,8 @@ lv_obj_t *screen_brightness_create(lv_obj_t *parent)
 
     // Brightness slider
     brightness_slider = lv_slider_create(container);
-    lv_slider_set_range(brightness_slider, 0, BRIGHTNESS_MAX);
-    lv_slider_set_value(brightness_slider, current_brightness, LV_ANIM_OFF);
+    lv_slider_set_range(brightness_slider, 1, BRIGHTNESS_MAX);
+    lv_slider_set_value(brightness_slider, g_brightness, LV_ANIM_OFF);
     lv_obj_set_size(brightness_slider, 280, 30);
     lv_obj_set_style_bg_color(brightness_slider, lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_bg_color(brightness_slider, COLOR_ACCENT, LV_PART_INDICATOR);

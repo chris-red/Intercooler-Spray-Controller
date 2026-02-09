@@ -13,6 +13,22 @@
  */
 lv_obj_t *screen_brightness_create(lv_obj_t *parent);
 
+/***********************
+ *  GLOBAL VARIABLES
+ ***********************/
+extern uint8_t g_brightness;
+
+/**
+ * Set the LCD brightness and update g_brightness
+ * @param brightness Brightness value 0-100
+ */
+void set_brightness(uint8_t brightness);
+
+/**
+ * Update the brightness slider and label to match g_brightness
+ */
+void screen_brightness_update_ui(void);
+
 /**
  * Destroy the brightness screen and free resources
  */

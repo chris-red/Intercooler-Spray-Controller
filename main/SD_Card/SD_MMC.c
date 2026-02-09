@@ -58,7 +58,7 @@ esp_err_t s_example_read_file(const char *path)
 }
 
 
-void SD_Init(void)
+esp_err_t SD_Init(void)
 {
     esp_err_t ret;
 
@@ -113,13 +113,14 @@ void SD_Init(void)
             ESP_LOGE(SD_TAG, "Failed to initialize the card (%s). "
                      "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
         }
-        return;
+        return ret;
     }
     ESP_LOGI(SD_TAG, "Filesystem mounted");
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
     SDCard_Size = ((uint64_t) card->csd.capacity) * card->csd.sector_size / (1024 * 1024);
+    return ESP_OK;
 }
 void Flash_Searching(void)
 {

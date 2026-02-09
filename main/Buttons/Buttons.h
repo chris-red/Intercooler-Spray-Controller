@@ -14,7 +14,7 @@
  *
  *  NOTE: USB logging is unavailable either way (GPIO19 = thermistor)
  ***********************/
-#define ENABLE_BUTTONS   1
+#define ENABLE_BUTTONS   0
 
 /***********************
  *  PIN CONFIGURATION
