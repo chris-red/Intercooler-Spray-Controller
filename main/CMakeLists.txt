@@ -16,6 +16,7 @@ idf_component_register(
                               "LVGL_UI/screen_manager.c"
                               "LVGL_UI/screen_main.c"
                               "LVGL_UI/screen_brightness.c"
+                              "LVGL_UI/screen_clock_settings.c"
                               "LVGL_UI/screen_trigger_temp.c"
                               "LVGL_UI/screen_spray_duration.c"
                               "LVGL_UI/screen_spray_interval.c"

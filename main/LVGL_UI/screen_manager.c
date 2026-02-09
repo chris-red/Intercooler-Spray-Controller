@@ -1,6 +1,7 @@
 #include "screen_manager.h"
 #include "screen_main.h"
 #include "screen_brightness.h"
+#include "screen_clock_settings.h"
 #include "screen_trigger_temp.h"
 #include "screen_spray_duration.h"
 #include "screen_spray_interval.h"
@@ -82,6 +83,12 @@ static void gesture_event_cb(lv_event_t *e)
     } else if (current_screen == SCREEN_ID_BRIGHTNESS && dir == LV_DIR_BOTTOM) {
         ESP_LOGI(TAG, "NAV: brightness -> main");
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_DOWN);
+    } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_RIGHT) {
+        ESP_LOGI(TAG, "NAV: main -> clock settings");
+        screen_manager_navigate(SCREEN_ID_CLOCK_SETTINGS, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_CLOCK_SETTINGS && dir == LV_DIR_LEFT) {
+        ESP_LOGI(TAG, "NAV: clock settings -> main");
+        screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_LEFT);
     } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_LEFT) {
         ESP_LOGI(TAG, "NAV: main -> trigger temp");
         screen_manager_navigate(SCREEN_ID_TRIGGER_TEMP, SCREEN_TRANSITION_SLIDE_LEFT);
@@ -184,6 +191,9 @@ static void cleanup_screen(screen_id_t screen)
             case SCREEN_ID_BRIGHTNESS:
                 screen_brightness_destroy();
                 break;
+            case SCREEN_ID_CLOCK_SETTINGS:
+                screen_clock_settings_destroy();
+                break;
             case SCREEN_ID_TRIGGER_TEMP:
                 screen_trigger_temp_destroy();
                 break;
@@ -254,6 +264,10 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
                 // Ensure brightness UI is updated after widget creation
                 screen_brightness_update_ui();
                 break;
+            case SCREEN_ID_CLOCK_SETTINGS:
+                screen_containers[screen] = screen_clock_settings_create(screen_root);
+                screen_clock_settings_update_ui();
+                break;
             case SCREEN_ID_TRIGGER_TEMP:
                 screen_containers[screen] = screen_trigger_temp_create(screen_root);
                 break;
@@ -288,6 +302,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_BRIGHTNESS:
                 screen_brightness_hide();
                 break;
+            case SCREEN_ID_CLOCK_SETTINGS:
+                // Clock settings doesn't need a hide function
+                break;
             case SCREEN_ID_TRIGGER_TEMP:
                 screen_trigger_temp_hide();
                 break;
@@ -312,6 +329,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             break;
         case SCREEN_ID_BRIGHTNESS:
             screen_brightness_show();
+            break;
+        case SCREEN_ID_CLOCK_SETTINGS:
+            // Clock settings doesn't need a show function
             break;
         case SCREEN_ID_TRIGGER_TEMP:
             screen_trigger_temp_show();
