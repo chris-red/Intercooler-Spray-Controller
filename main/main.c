@@ -12,7 +12,6 @@
 #include "SD_Logger.h"
 #include "Settings.h"
 #include "LVGL_Driver.h"
-#include "LVGL_Example.h"
 #include "intercooler_ui.h"
 //#include "Wireless.h"
 #include "lvgl.h"
@@ -146,7 +145,7 @@ void app_main(void)
 
     while (1) {
         // raise the task priority of LVGL and/or reduce the handler period can improve the performance
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(2));
         // The task running lv_timer_handler should have lower priority than that running `lv_tick_inc`
         lvgl_port_lock(0);
         lv_timer_handler();

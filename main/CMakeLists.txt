@@ -11,7 +11,6 @@ idf_component_register(
                               "SD_Card/SD_MMC.c"
                               "SD_Card/Settings.c"
                               "SD_Logger/SD_Logger.c"
-                              "LVGL_UI/LVGL_Example.c"
                               "LVGL_UI/intercooler_ui.c"
                               "LVGL_UI/ui_common.c"
                               "LVGL_UI/screen_manager.c"

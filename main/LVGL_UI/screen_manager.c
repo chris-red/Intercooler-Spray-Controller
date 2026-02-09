@@ -223,8 +223,8 @@ void screen_manager_init(void)
     lv_indev_t *indev = NULL;
     while ((indev = lv_indev_get_next(indev)) != NULL) {
         if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {
-            indev->driver->gesture_limit = 80;       // Require longer swipe (default 50)
-            indev->driver->gesture_min_velocity = 4;  // Slightly higher velocity threshold
+            indev->driver->gesture_limit = 30;       // Require much shorter swipe (was 80, default 50)
+            indev->driver->gesture_min_velocity = 2;  // Lower velocity threshold (was 4)
             break;
         }
     }
