@@ -9,6 +9,7 @@
  */
 
 #include "screen_gmeter.h"
+#include "screen_gmeter_cal.h"
 #include "ui_common.h"
 #include "screen_manager.h"
 #include "G_Meter.h"
@@ -103,31 +104,40 @@ static void update_timer_cb(lv_timer_t *timer)
         if (res >= 1.2f)      col = COLOR_TEMP_CRITICAL;
         else if (res >= 0.8f) col = COLOR_TEMP_WARNING;
 
-        /* --- Trail: place the next trail dot at current position --- */
-        lv_obj_t *td = trail_dots[trail_idx % TRAIL_LEN];
-        if (td) {
-            lv_coord_t tcx = TARGET_HALF + px - TRAIL_DOT_SIZE / 2;
-            lv_coord_t tcy = TARGET_HALF + py - TRAIL_DOT_SIZE / 2;
-            lv_obj_set_pos(td, tcx, tcy);
-            lv_obj_set_style_bg_color(td, col, 0);
-            lv_obj_set_style_bg_opa(td, LV_OPA_COVER, 0);
-            lv_obj_clear_flag(td, LV_OBJ_FLAG_HIDDEN);
-        }
-        trail_idx++;
+        /* --- Trail --- */
+        if (g_trail_enabled) {
+            lv_obj_t *td = trail_dots[trail_idx % TRAIL_LEN];
+            if (td) {
+                lv_coord_t tcx = TARGET_HALF + px - TRAIL_DOT_SIZE / 2;
+                lv_coord_t tcy = TARGET_HALF + py - TRAIL_DOT_SIZE / 2;
+                lv_obj_set_pos(td, tcx, tcy);
+                lv_obj_set_style_bg_color(td, col, 0);
+                lv_obj_set_style_bg_opa(td, LV_OPA_COVER, 0);
+                lv_obj_clear_flag(td, LV_OBJ_FLAG_HIDDEN);
+            }
+            trail_idx++;
 
-        /* Age all trail dots */
-        for (int i = 0; i < TRAIL_LEN; i++) {
-            if (!trail_dots[i]) continue;
-            int age = (trail_idx - 1 - i) % TRAIL_LEN;
-            if (age < 0) age += TRAIL_LEN;
-            if (age >= TRAIL_LEN) {
-                lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_opa_t opa = (lv_opa_t)(LV_OPA_COVER * (TRAIL_LEN - age) / TRAIL_LEN);
-                if (opa < LV_OPA_10) {
+            /* Age all trail dots */
+            for (int i = 0; i < TRAIL_LEN; i++) {
+                if (!trail_dots[i]) continue;
+                int age = (trail_idx - 1 - i) % TRAIL_LEN;
+                if (age < 0) age += TRAIL_LEN;
+                if (age >= TRAIL_LEN) {
                     lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
                 } else {
-                    lv_obj_set_style_bg_opa(trail_dots[i], opa, 0);
+                    lv_opa_t opa = (lv_opa_t)(LV_OPA_COVER * (TRAIL_LEN - age) / TRAIL_LEN);
+                    if (opa < LV_OPA_10) {
+                        lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
+                    } else {
+                        lv_obj_set_style_bg_opa(trail_dots[i], opa, 0);
+                    }
+                }
+            }
+        } else {
+            /* Trail off — hide all trail dots */
+            for (int i = 0; i < TRAIL_LEN; i++) {
+                if (trail_dots[i]) {
+                    lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
                 }
             }
         }

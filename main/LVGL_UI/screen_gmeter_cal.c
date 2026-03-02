@@ -23,12 +23,18 @@
 static const char *TAG = "scr_cal";
 
 /***********************
+ *  GLOBAL VARIABLES
+ ***********************/
+bool g_trail_enabled = true;   /* default on */
+
+/***********************
  *  STATIC VARIABLES
  ***********************/
 static lv_obj_t   *container     = NULL;
 static lv_obj_t   *lbl_status    = NULL;
 static lv_obj_t   *lbl_live      = NULL;
 static lv_obj_t   *cal_btn       = NULL;
+static lv_obj_t   *sw_trail      = NULL;
 static lv_timer_t *update_timer  = NULL;
 
 /***********************
@@ -36,6 +42,7 @@ static lv_timer_t *update_timer  = NULL;
  ***********************/
 static void update_timer_cb(lv_timer_t *timer);
 static void cal_btn_event_cb(lv_event_t *e);
+static void trail_toggle_cb(lv_event_t *e);
 
 /***********************
  *  IMPLEMENTATIONS
@@ -155,6 +162,31 @@ lv_obj_t *screen_gmeter_cal_create(lv_obj_t *parent)
     lv_obj_set_style_text_font(btn_label, fonts->normal, 0);
     lv_obj_center(btn_label);
 
+    /* ===== Trail toggle ===== */
+    lv_obj_t *trail_row = lv_obj_create(container);
+    lv_obj_remove_style_all(trail_row);
+    lv_obj_set_size(trail_row, 250, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(trail_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(trail_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(trail_row, 10, 0);
+    lv_obj_clear_flag(trail_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(trail_row, LV_OBJ_FLAG_GESTURE_BUBBLE);
+
+    lv_obj_t *trail_label = lv_label_create(trail_row);
+    lv_label_set_text(trail_label, "Trail");
+    lv_obj_set_style_text_color(trail_label, COLOR_TEXT_PRIMARY, 0);
+    lv_obj_set_style_text_font(trail_label, fonts->normal, 0);
+
+    sw_trail = lv_switch_create(trail_row);
+    lv_obj_set_size(sw_trail, 50, 26);
+    lv_obj_set_style_bg_color(sw_trail, COLOR_INDICATOR_OFF, 0);
+    lv_obj_set_style_bg_color(sw_trail, COLOR_ACCENT, LV_STATE_CHECKED | LV_PART_INDICATOR);
+    if (g_trail_enabled) {
+        lv_obj_add_state(sw_trail, LV_STATE_CHECKED);
+    }
+    lv_obj_add_event_cb(sw_trail, trail_toggle_cb, LV_EVENT_ALL, NULL);
+
     /* ===== Update timer (200 ms) ===== */
     update_timer = lv_timer_create(update_timer_cb, 200, NULL);
 
@@ -176,6 +208,7 @@ void screen_gmeter_cal_destroy(void)
     lbl_status  = NULL;
     lbl_live    = NULL;
     cal_btn     = NULL;
+    sw_trail    = NULL;
 }
 
 void screen_gmeter_cal_show(void)
@@ -186,4 +219,19 @@ void screen_gmeter_cal_show(void)
 void screen_gmeter_cal_hide(void)
 {
     if (update_timer) lv_timer_pause(update_timer);
+}
+
+static void trail_toggle_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_RELEASED) {
+        screen_manager_reset_inactivity();
+    }
+
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        g_trail_enabled = lv_obj_has_state(sw_trail, LV_STATE_CHECKED);
+        settings_save();
+        ESP_LOGI(TAG, "Trail %s", g_trail_enabled ? "ON" : "OFF");
+    }
 }

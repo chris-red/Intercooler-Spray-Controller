@@ -1,6 +1,12 @@
 #pragma once
 
 #include "lvgl.h"
+#include <stdbool.h>
+
+/***********************
+ *  GLOBAL VARIABLES
+ ***********************/
+extern bool g_trail_enabled;  /**< G-meter trail on/off (persisted) */
 
 /***********************
  *  FUNCTION DECLARATIONS

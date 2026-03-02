@@ -16,6 +16,7 @@
 #include "screen_spray_interval.h"  /* g_sprayer_interval       */
 #include "screen_brightness.h"      /* g_brightness             */
 #include "screen_data_logging.h"    /* g_logging_enabled        */
+#include "screen_gmeter_cal.h"      /* g_trail_enabled          */
 #include "G_Meter.h"                /* G_Meter_SetMax/GetMax    */
 
 static const char *TAG = "Settings";
@@ -118,6 +119,10 @@ esp_err_t settings_load(void)
         } else if (strcmp(key, "cal_offset_z") == 0) {
             s_loaded_cal_z = strtof(val, NULL);
             s_has_cal = true;
+        } else if (strcmp(key, "trail_enabled") == 0) {
+            int v = atoi(val);
+            g_trail_enabled = (v != 0);
+            ESP_LOGI(TAG, "  trail_enabled = %d", g_trail_enabled);
         }
     }
 
@@ -162,6 +167,7 @@ esp_err_t settings_save(void)
     G_Meter_GetCalibration(&cal_y, &cal_z);
     fprintf(f, "cal_offset_y=%.6f\n",   cal_y);
     fprintf(f, "cal_offset_z=%.6f\n",   cal_z);
+    fprintf(f, "trail_enabled=%d\n",    (int)g_trail_enabled);
 
     fflush(f);
     fsync(fileno(f));
@@ -187,5 +193,6 @@ app_settings_t settings_get_current(void)
         .max_g_brake     = G_Meter_GetMaxBrake(),
         .cal_offset_y    = cy,
         .cal_offset_z    = cz,
+        .trail_enabled   = g_trail_enabled,
     };
 }

@@ -21,6 +21,7 @@ typedef struct {
     float    max_g_brake;       /**< Peak braking G-force              */
     float    cal_offset_y;      /**< G-meter calibration offset Y      */
     float    cal_offset_z;      /**< G-meter calibration offset Z      */
+    bool     trail_enabled;     /**< G-meter trail on/off              */
 } app_settings_t;
 
 /**
