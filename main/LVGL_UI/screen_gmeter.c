@@ -34,12 +34,18 @@ static const char *TAG = "scr_gm";
 #define DOT_SIZE         16
 #define CROSS_LINE_W     1
 
+/* Trail: 5 seconds at 100 ms update = 50 trail samples */
+#define TRAIL_LEN        50
+#define TRAIL_DOT_SIZE   8
+
 /***********************
  *  STATIC VARIABLES
  ***********************/
 static lv_obj_t   *container     = NULL;
 static lv_obj_t   *target_area   = NULL;
 static lv_obj_t   *dot           = NULL;
+static lv_obj_t   *trail_dots[TRAIL_LEN] = {NULL};
+static int         trail_idx     = 0;
 static lv_obj_t   *lbl_lat       = NULL;
 static lv_obj_t   *lbl_lon       = NULL;
 static lv_obj_t   *lbl_max_l     = NULL;
@@ -91,12 +97,43 @@ static void update_timer_cb(lv_timer_t *timer)
 
         lv_coord_t cx = TARGET_HALF + px - DOT_SIZE / 2;
         lv_coord_t cy = TARGET_HALF + py - DOT_SIZE / 2;
-        lv_obj_set_pos(dot, cx, cy);
 
         float res = sqrtf(lat * lat + lon * lon);
         lv_color_t col = COLOR_TEMP_NORMAL;
         if (res >= 1.2f)      col = COLOR_TEMP_CRITICAL;
         else if (res >= 0.8f) col = COLOR_TEMP_WARNING;
+
+        /* --- Trail: place the next trail dot at current position --- */
+        lv_obj_t *td = trail_dots[trail_idx % TRAIL_LEN];
+        if (td) {
+            lv_coord_t tcx = TARGET_HALF + px - TRAIL_DOT_SIZE / 2;
+            lv_coord_t tcy = TARGET_HALF + py - TRAIL_DOT_SIZE / 2;
+            lv_obj_set_pos(td, tcx, tcy);
+            lv_obj_set_style_bg_color(td, col, 0);
+            lv_obj_set_style_bg_opa(td, LV_OPA_COVER, 0);
+            lv_obj_clear_flag(td, LV_OBJ_FLAG_HIDDEN);
+        }
+        trail_idx++;
+
+        /* Age all trail dots */
+        for (int i = 0; i < TRAIL_LEN; i++) {
+            if (!trail_dots[i]) continue;
+            int age = (trail_idx - 1 - i) % TRAIL_LEN;
+            if (age < 0) age += TRAIL_LEN;
+            if (age >= TRAIL_LEN) {
+                lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_opa_t opa = (lv_opa_t)(LV_OPA_COVER * (TRAIL_LEN - age) / TRAIL_LEN);
+                if (opa < LV_OPA_10) {
+                    lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_set_style_bg_opa(trail_dots[i], opa, 0);
+                }
+            }
+        }
+
+        /* Move main dot (always on top via creation order) */
+        lv_obj_set_pos(dot, cx, cy);
         lv_obj_set_style_bg_color(dot, col, 0);
     }
 
@@ -234,6 +271,20 @@ lv_obj_t *screen_gmeter_create(lv_obj_t *parent)
     create_rings(target_area);
     create_crosshairs(target_area);
 
+    /* ===== Trail dots (created before main dot so they render behind) ===== */
+    for (int i = 0; i < TRAIL_LEN; i++) {
+        trail_dots[i] = lv_obj_create(target_area);
+        lv_obj_remove_style_all(trail_dots[i]);
+        lv_obj_set_size(trail_dots[i], TRAIL_DOT_SIZE, TRAIL_DOT_SIZE);
+        lv_obj_set_style_radius(trail_dots[i], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(trail_dots[i], COLOR_TEMP_NORMAL, 0);
+        lv_obj_set_style_bg_opa(trail_dots[i], LV_OPA_TRANSP, 0);
+        lv_obj_clear_flag(trail_dots[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(trail_dots[i], LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_GESTURE_BUBBLE);
+        lv_obj_set_pos(trail_dots[i], TARGET_HALF - TRAIL_DOT_SIZE / 2, TARGET_HALF - TRAIL_DOT_SIZE / 2);
+    }
+    trail_idx = 0;
+
     /* Edge labels */
     lbl_left = lv_label_create(container);
     lv_label_set_text(lbl_left, "L");
@@ -359,6 +410,8 @@ void screen_gmeter_destroy(void)
 
     target_area  = NULL;
     dot          = NULL;
+    for (int i = 0; i < TRAIL_LEN; i++) trail_dots[i] = NULL;
+    trail_idx    = 0;
     lbl_lat      = NULL;
     lbl_lon      = NULL;
     lbl_max_l    = NULL;
