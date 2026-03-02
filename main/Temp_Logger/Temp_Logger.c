@@ -25,22 +25,18 @@ static bool              s_active   = false;
 static bool              s_dirty    = false;
 static TickType_t        s_last_write_tick = 0;
 
-/* Track which day the current file belongs to so we can roll at midnight */
-static int s_file_day  = -1;
-static int s_file_mon  = -1;
-static int s_file_year = -1;
-
 /* --------------- helpers --------------------- */
 
 static void ensure_dir(const char *path)
 {
     struct stat st;
     if (stat(path, &st) != 0) {
+        ESP_LOGI(TAG, "Creating directory: %s", path);
         mkdir(path, 0775);
     }
 }
 
-/** Open (or reopen) a CSV file named by today's date. */
+/** Open a new CSV file named by current date and time. */
 static esp_err_t open_log_file(void)
 {
     if (s_file) {
@@ -50,32 +46,35 @@ static esp_err_t open_log_file(void)
         s_file = NULL;
     }
 
+    /* Make sure parent dirs exist */
+    ensure_dir("/sdcard/system");
     ensure_dir(TEMP_LOG_DIR);
 
-    /* Filename: YYYY-MM-DD.csv */
+    /* Use date+time from RTC; fall back if date is clearly invalid */
+    uint16_t y = datetime.year;
+    uint8_t  m = datetime.month;
+    uint8_t  d = datetime.day;
+
     char path[128];
-    snprintf(path, sizeof(path), "%s/%04d-%02d-%02d%s",
-             TEMP_LOG_DIR,
-             datetime.year, datetime.month, datetime.day,
-             TEMP_LOG_EXT);
+    if (y >= 2020 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        snprintf(path, sizeof(path), "%s/%04d-%02d-%02d_%02d-%02d-%02d%s",
+                 TEMP_LOG_DIR, y, m, d,
+                 datetime.hour, datetime.minute, datetime.second,
+                 TEMP_LOG_EXT);
+    } else {
+        ESP_LOGW(TAG, "RTC date invalid (%04d-%02d-%02d), using fallback name", y, m, d);
+        snprintf(path, sizeof(path), "%s/datalog%s", TEMP_LOG_DIR, TEMP_LOG_EXT);
+    }
 
-    /* Check if file already exists (append) or is new (write header) */
-    struct stat st;
-    bool exists = (stat(path, &st) == 0);
+    ESP_LOGI(TAG, "Opening log file: %s", path);
 
-    s_file = fopen(path, "a");
+    s_file = fopen(path, "w");
     if (!s_file) {
-        ESP_LOGE(TAG, "Failed to open %s (errno %d)", path, errno);
+        ESP_LOGE(TAG, "Failed to open %s (errno %d: %s)", path, errno, strerror(errno));
         return ESP_FAIL;
     }
 
-    if (!exists) {
-        fprintf(s_file, "Date,Time,Temp_C\n");
-    }
-
-    s_file_day  = datetime.day;
-    s_file_mon  = datetime.month;
-    s_file_year = datetime.year;
+    fprintf(s_file, "Date,Time,Temp_C\n");
 
     ESP_LOGI(TAG, "Logging to %s", path);
     return ESP_OK;
@@ -141,13 +140,6 @@ void Temp_Logger_Feed(float temp_celsius)
         return;
     }
 
-    /* Roll to a new file at midnight */
-    if (datetime.day != s_file_day ||
-        datetime.month != s_file_mon ||
-        datetime.year  != s_file_year) {
-        open_log_file();
-    }
-
     if (s_file) {
         fprintf(s_file, "%04d-%02d-%02d,%02d:%02d:%02d,%.1f\n",
                 datetime.year, datetime.month, datetime.day,
@@ -162,12 +154,14 @@ void Temp_Logger_Feed(float temp_celsius)
 
 void Temp_Logger_Flush(void)
 {
-    if (!s_mutex || !s_file || !s_dirty) return;
+    if (!s_mutex) return;
 
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        fflush(s_file);
-        fsync(fileno(s_file));
-        s_dirty = false;
+        if (s_file && s_dirty) {
+            fflush(s_file);
+            fsync(fileno(s_file));
+            s_dirty = false;
+        }
         xSemaphoreGive(s_mutex);
     }
 }

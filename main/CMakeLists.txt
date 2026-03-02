@@ -24,6 +24,7 @@ idf_component_register(
                               "LVGL_UI/screen_data_logging.c"
                               "LVGL_UI/screen_gmeter.c"
                               "LVGL_UI/screen_gmeter_cal.c"
+                              "LVGL_UI/screen_wifi_files.c"
                               "Wireless/Wireless.c"
                               "Buzzer/Buzzer.c"
                               "BAT_Driver/BAT_Driver.c"
@@ -31,6 +32,7 @@ idf_component_register(
                               "Buttons/Buttons.c"
                               "Temp_Logger/Temp_Logger.c"
                               "G_Meter/G_Meter.c"
+                              "Wifi_File_Server/Wifi_File_Server.c"
 
                         INCLUDE_DIRS "./EXIO"
                                      "./LCD_Driver"
@@ -50,5 +52,6 @@ idf_component_register(
                                      "./Buttons"
                                      "./Temp_Logger"
                                      "./G_Meter"
+                                     "./Wifi_File_Server"
                                      "."
                         )

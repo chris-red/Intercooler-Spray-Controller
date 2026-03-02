@@ -26,7 +26,7 @@ static const char *TAG = "main";
 
 
 // Redraw the entire screen by clearing and recreating the UI
-void refresh_screen(void) {
+static void refresh_screen(void) {
     lvgl_port_lock(0);
     lv_obj_clean(lv_scr_act());
     intercooler_ui_create();
@@ -54,18 +54,27 @@ void Driver_Loop(void *parameter)
         if (++therm_log_counter >= 20) {  // Log every 2 seconds (2 x 1000ms)
             ESP_LOGI(TAG, "Thermistor: %d mV, %.1f°C", raw_mv, temp);
             therm_log_counter = 0;
-        
+        }
+
         if (temp > -900.0f) {  // Valid reading
             if (lvgl_port_lock(0)) {
                 intercooler_ui_update_temperature(temp);
                 lvgl_port_unlock();
             }
         }
-        }
 
         // --- Feed temperature data logger (writes once/sec internally) ---
         if (temp > -900.0f) {
             Temp_Logger_Feed(temp);
+        }
+
+        // --- Periodic flush of temperature log to SD card ---
+        {
+            static int flush_counter = 0;
+            if (++flush_counter >= 100) {   // Every 10 seconds (100 × 100 ms)
+                Temp_Logger_Flush();
+                flush_counter = 0;
+            }
         }
 
 #if ENABLE_BUTTONS
@@ -137,6 +146,7 @@ void app_main(void)
     if (sd_ret == ESP_OK) {
         settings_load();             // Load saved settings from SD card
         SD_Logger_Init(0);           // Start logging to SD card (0 = default 1s sync)
+        RTC_Loop();                  // Read RTC now so datetime has correct date for log filename
         Temp_Logger_Init();          // Initialize temperature data logger
         if (g_logging_enabled) {
             Temp_Logger_SetEnabled(true);  // Resume logging if it was on

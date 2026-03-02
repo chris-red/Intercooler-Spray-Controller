@@ -115,7 +115,7 @@ static void update_timer_cb(lv_timer_t *timer)
                 lv_obj_set_style_bg_opa(td, LV_OPA_COVER, 0);
                 lv_obj_clear_flag(td, LV_OBJ_FLAG_HIDDEN);
             }
-            trail_idx++;
+            trail_idx = (trail_idx + 1) % TRAIL_LEN;
 
             /* Age all trail dots */
             for (int i = 0; i < TRAIL_LEN; i++) {

@@ -13,6 +13,7 @@
 #include "screen_data_logging.h"
 #include "screen_gmeter.h"
 #include "screen_gmeter_cal.h"
+#include "screen_wifi_files.h"
 
 /***********************
  *  FUNCTION DECLARATIONS

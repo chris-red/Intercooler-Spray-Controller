@@ -6,7 +6,7 @@
 /**
  * @brief Initialize the temperature data logger.
  *
- * Creates /sdcard/system/temp_logs/ if needed and starts a FreeRTOS
+ * Creates /sdcard/system/logs/ if needed and starts a FreeRTOS
  * timer that writes a timestamped temperature reading to a CSV file
  * once every second when logging is enabled.
  *

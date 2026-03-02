@@ -7,6 +7,7 @@
 #include "screen_spray_interval.h"
 #include "screen_save_settings.h"
 #include "screen_data_logging.h"
+#include "screen_wifi_files.h"
 #include "screen_gmeter.h"
 #include "screen_gmeter_cal.h"
 #include "ui_common.h"
@@ -36,10 +37,18 @@ static void gesture_event_cb(lv_event_t *e);
 static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_transition_t transition);
 static void cleanup_screen(screen_id_t screen);
 static bool nav_cooldown_check(void);
+static void root_scroll_guard_cb(lv_event_t *e);
 
 /***********************
  *  IMPLEMENTATIONS
  ***********************/
+
+/* Immediately undo any scroll on the root screen object. */
+static void root_scroll_guard_cb(lv_event_t *e)
+{
+    lv_obj_t *obj = lv_event_get_target(e);
+    lv_obj_scroll_to(obj, 0, 0, LV_ANIM_OFF);
+}
 
 static uint32_t last_nav_time = 0;
 
@@ -130,6 +139,12 @@ static void gesture_event_cb(lv_event_t *e)
     } else if (current_screen == SCREEN_ID_SAVE_SETTINGS && dir == LV_DIR_RIGHT) {
         ESP_LOGI(TAG, "NAV: save settings -> data logging");
         screen_manager_navigate(SCREEN_ID_DATA_LOGGING, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_SAVE_SETTINGS && dir == LV_DIR_LEFT) {
+        ESP_LOGI(TAG, "NAV: save settings -> wifi files");
+        screen_manager_navigate(SCREEN_ID_WIFI_FILES, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_WIFI_FILES && dir == LV_DIR_RIGHT) {
+        ESP_LOGI(TAG, "NAV: wifi files -> save settings");
+        screen_manager_navigate(SCREEN_ID_SAVE_SETTINGS, SCREEN_TRANSITION_SLIDE_RIGHT);
     } else if (current_screen == SCREEN_ID_GMETER && dir == LV_DIR_LEFT) {
         ESP_LOGI(TAG, "NAV: g-meter -> g-meter cal");
         screen_manager_navigate(SCREEN_ID_GMETER_CAL, SCREEN_TRANSITION_SLIDE_LEFT);
@@ -147,6 +162,12 @@ static void anim_ready_cb(lv_anim_t *a)
     // Snap to exact final position to prevent any drift
     lv_obj_set_x(obj, 0);
     lv_obj_set_y(obj, 0);
+    /* Force screen_root to forget any expanded scroll area that was
+     * caused by the temporary off-screen child position during animation. */
+    lv_obj_t *parent = lv_obj_get_parent(obj);
+    if (parent) {
+        lv_obj_scroll_to(parent, 0, 0, LV_ANIM_OFF);
+    }
 }
 
 static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_transition_t transition)
@@ -167,6 +188,11 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
     
     // Simple slide animation
     if (in_obj) {
+        /* Always reset both axes before starting a single-axis slide
+         * so no residual offset from a previous animation leaks through. */
+        lv_obj_set_x(in_obj, 0);
+        lv_obj_set_y(in_obj, 0);
+
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, in_obj);
@@ -197,6 +223,9 @@ static void animate_transition(lv_obj_t *out_obj, lv_obj_t *in_obj, screen_trans
     }
     
     if (out_obj) {
+        /* Cancel any running animation on the outgoing screen so its
+         * ready-callback doesn't fire later and clobber positions. */
+        lv_anim_del(out_obj, NULL);
         lv_obj_add_flag(out_obj, LV_OBJ_FLAG_HIDDEN);
         // Reset outgoing screen position so it's clean if reused
         lv_obj_set_x(out_obj, 0);
@@ -229,6 +258,9 @@ static void cleanup_screen(screen_id_t screen)
             case SCREEN_ID_DATA_LOGGING:
                 screen_data_logging_destroy();
                 break;
+            case SCREEN_ID_WIFI_FILES:
+                screen_wifi_files_destroy();
+                break;
             case SCREEN_ID_GMETER_CAL:
                 screen_gmeter_cal_destroy();
                 break;
@@ -250,6 +282,14 @@ void screen_manager_init(void)
     // Get the active screen from LVGL
     screen_root = lv_scr_act();
     lv_obj_set_style_bg_color(screen_root, COLOR_BG_PRIMARY, 0);
+    /* Prevent the root screen from being scrolled by stray touch /
+     * gesture events – scrolling the root shifts every child container. */
+    lv_obj_clear_flag(screen_root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(screen_root, LV_DIR_NONE);
+    lv_obj_clear_flag(screen_root, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
+    lv_obj_clear_flag(screen_root, LV_OBJ_FLAG_SCROLL_CHAIN_VER);
+    /* Last-resort guard: if anything scrolls screen_root, undo it immediately. */
+    lv_obj_add_event_cb(screen_root, root_scroll_guard_cb, LV_EVENT_SCROLL, NULL);
     
     // Start with main screen
     current_screen = SCREEN_ID_MAIN;
@@ -283,6 +323,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
         ESP_LOGW(TAG, "navigate() ABORTED: invalid screen %d or same as current %d", screen, current_screen);
         return;
     }
+
+    /* Safety: reset root scroll in case a touch event scrolled it. */
+    lv_obj_scroll_to(screen_root, 0, 0, LV_ANIM_OFF);
     
     // Create the new screen if it doesn't exist
     if (!screen_containers[screen]) {
@@ -311,6 +354,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
                 break;
             case SCREEN_ID_DATA_LOGGING:
                 screen_containers[screen] = screen_data_logging_create(screen_root);
+                break;
+            case SCREEN_ID_WIFI_FILES:
+                screen_containers[screen] = screen_wifi_files_create(screen_root);
                 break;
             case SCREEN_ID_GMETER_CAL:
                 screen_containers[screen] = screen_gmeter_cal_create(screen_root);
@@ -358,6 +404,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_DATA_LOGGING:
                 screen_data_logging_hide();
                 break;
+            case SCREEN_ID_WIFI_FILES:
+                screen_wifi_files_hide();
+                break;
             case SCREEN_ID_GMETER_CAL:
                 screen_gmeter_cal_hide();
                 break;
@@ -394,6 +443,9 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             break;
         case SCREEN_ID_DATA_LOGGING:
             screen_data_logging_show();
+            break;
+        case SCREEN_ID_WIFI_FILES:
+            screen_wifi_files_show();
             break;
         case SCREEN_ID_GMETER_CAL:
             screen_gmeter_cal_show();

@@ -519,6 +519,31 @@ void LCD_Init(void)
     ESP_LOGI(LCD_TAG, "LCD initialization complete");
     Backlight_Init();
 }
+
+void LCD_Restart(void)
+{
+    /* Re-send the ST7701S register config to re-synchronise the display
+     * engine after an event that disrupts PSRAM DMA timing (e.g. WiFi
+     * start).  This fixes the horizontal pixel-shift that occurs when
+     * the RGB panel's continuous DMA reads from PSRAM are disrupted. */
+    ESP_LOGI(LCD_TAG, "=== LCD Restart: re-syncing ST7701S ===");
+
+    /* Reset the panel – this re-initialises the internal DMA / timing
+     * state of the ESP RGB driver so the HSYNC position is correct. */
+    esp_lcd_panel_reset(panel_handle);
+    esp_lcd_panel_init(panel_handle);
+
+    /* Re-send the ST7701S SPI configuration so the display controller
+     * is back in sync with the new pixel clock phase. */
+    vTaskDelay(pdMS_TO_TICKS(50));
+    if (st7701s_spi) {
+        ST7701S_CS_EN();
+        vTaskDelay(pdMS_TO_TICKS(10));
+        ST7701S_screen_init(st7701s_spi, 1);
+        ST7701S_CS_Dis();
+    }
+    ESP_LOGI(LCD_TAG, "LCD Restart complete");
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Backlight program
 
