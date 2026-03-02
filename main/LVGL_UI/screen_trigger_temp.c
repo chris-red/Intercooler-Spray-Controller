@@ -98,7 +98,7 @@ lv_obj_t *screen_trigger_temp_create(lv_obj_t *parent)
 
     // Slider: 20-70
     slider = lv_slider_create(container);
-    lv_slider_set_range(slider, 20, 70);
+    lv_slider_set_range(slider, 20, 60);
     lv_slider_set_value(slider, g_trigger_temperature, LV_ANIM_OFF);
     lv_obj_set_size(slider, 280, 30);
     lv_obj_set_style_bg_color(slider, lv_color_hex(0x333333), LV_PART_MAIN);

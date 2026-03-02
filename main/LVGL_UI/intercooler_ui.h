@@ -10,6 +10,9 @@
 #include "screen_trigger_temp.h"
 #include "screen_spray_duration.h"
 #include "screen_spray_interval.h"
+#include "screen_data_logging.h"
+#include "screen_gmeter.h"
+#include "screen_gmeter_cal.h"
 
 /***********************
  *  FUNCTION DECLARATIONS

@@ -15,6 +15,8 @@
 #include "screen_spray_duration.h"  /* g_sprayer_duration       */
 #include "screen_spray_interval.h"  /* g_sprayer_interval       */
 #include "screen_brightness.h"      /* g_brightness             */
+#include "screen_data_logging.h"    /* g_logging_enabled        */
+#include "G_Meter.h"                /* G_Meter_SetMax/GetMax    */
 
 static const char *TAG = "Settings";
 
@@ -43,6 +45,12 @@ esp_err_t settings_load(void)
     }
 
     ESP_LOGI(TAG, "Loading settings from %s", SETTINGS_PATH);
+
+    /* Temporary storage for directional max values until fully parsed */
+    float s_loaded_left = 0.0f, s_loaded_right = 0.0f;
+    float s_loaded_fwd  = 0.0f, s_loaded_brk   = 0.0f;
+    float s_loaded_cal_y = 0.0f, s_loaded_cal_z = 0.0f;
+    bool  s_has_cal = false;
 
     char line[128];
     while (fgets(line, sizeof(line), f)) {
@@ -88,7 +96,40 @@ esp_err_t settings_load(void)
                 LCD_Backlight = g_brightness; // Ensure slider uses loaded value
                 ESP_LOGI(TAG, "  brightness = %d", v);
             }
+        } else if (strcmp(key, "logging_enabled") == 0) {
+            int v = atoi(val);
+            g_logging_enabled = (v != 0);
+            ESP_LOGI(TAG, "  logging_enabled = %d", g_logging_enabled);
+        } else if (strcmp(key, "max_g_left") == 0) {
+            float v = strtof(val, NULL);
+            if (v >= 0.0f) { s_loaded_left = v; }
+        } else if (strcmp(key, "max_g_right") == 0) {
+            float v = strtof(val, NULL);
+            if (v >= 0.0f) { s_loaded_right = v; }
+        } else if (strcmp(key, "max_g_forward") == 0) {
+            float v = strtof(val, NULL);
+            if (v >= 0.0f) { s_loaded_fwd = v; }
+        } else if (strcmp(key, "max_g_brake") == 0) {
+            float v = strtof(val, NULL);
+            if (v >= 0.0f) { s_loaded_brk = v; }
+        } else if (strcmp(key, "cal_offset_y") == 0) {
+            s_loaded_cal_y = strtof(val, NULL);
+            s_has_cal = true;
+        } else if (strcmp(key, "cal_offset_z") == 0) {
+            s_loaded_cal_z = strtof(val, NULL);
+            s_has_cal = true;
         }
+    }
+
+    /* Apply loaded directional max values */
+    G_Meter_SetMaxDirectional(s_loaded_left, s_loaded_right, s_loaded_fwd, s_loaded_brk);
+    ESP_LOGI(TAG, "  max_g L=%.2f R=%.2f F=%.2f B=%.2f",
+             s_loaded_left, s_loaded_right, s_loaded_fwd, s_loaded_brk);
+
+    /* Restore calibration if available */
+    if (s_has_cal) {
+        G_Meter_SetCalibration(s_loaded_cal_y, s_loaded_cal_z);
+        ESP_LOGI(TAG, "  cal offsets Y=%.4f Z=%.4f", s_loaded_cal_y, s_loaded_cal_z);
     }
 
     fclose(f);
@@ -111,6 +152,16 @@ esp_err_t settings_save(void)
     fprintf(f, "spray_duration=%.1f\n", g_sprayer_duration);
     fprintf(f, "spray_interval=%ld\n", (long)g_sprayer_interval);
     fprintf(f, "brightness=%d\n",      (int)g_brightness);
+    fprintf(f, "logging_enabled=%d\n",  (int)g_logging_enabled);
+    fprintf(f, "max_g_left=%.2f\n",     G_Meter_GetMaxLeft());
+    fprintf(f, "max_g_right=%.2f\n",    G_Meter_GetMaxRight());
+    fprintf(f, "max_g_forward=%.2f\n",  G_Meter_GetMaxForward());
+    fprintf(f, "max_g_brake=%.2f\n",    G_Meter_GetMaxBrake());
+
+    float cal_y, cal_z;
+    G_Meter_GetCalibration(&cal_y, &cal_z);
+    fprintf(f, "cal_offset_y=%.6f\n",   cal_y);
+    fprintf(f, "cal_offset_z=%.6f\n",   cal_z);
 
     fflush(f);
     fsync(fileno(f));
@@ -122,10 +173,19 @@ esp_err_t settings_save(void)
 
 app_settings_t settings_get_current(void)
 {
+    float cy, cz;
+    G_Meter_GetCalibration(&cy, &cz);
     return (app_settings_t){
         .trigger_temp   = g_trigger_temperature,
         .spray_duration = g_sprayer_duration,
         .spray_interval = g_sprayer_interval,
         .brightness     = g_brightness,
+        .logging_enabled = g_logging_enabled,
+        .max_g_left      = G_Meter_GetMaxLeft(),
+        .max_g_right     = G_Meter_GetMaxRight(),
+        .max_g_forward   = G_Meter_GetMaxForward(),
+        .max_g_brake     = G_Meter_GetMaxBrake(),
+        .cal_offset_y    = cy,
+        .cal_offset_z    = cz,
     };
 }

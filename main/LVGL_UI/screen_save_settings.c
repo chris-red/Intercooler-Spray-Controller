@@ -12,6 +12,7 @@
 #include "screen_spray_duration.h"
 #include "screen_spray_interval.h"
 #include "screen_brightness.h"
+#include "screen_data_logging.h"
 
 static const char *TAG = "scr_save";
 
@@ -37,16 +38,18 @@ static void update_summary(void)
 {
     if (!summary_label) return;
 
-    static char buf[200];
+    static char buf[256];
     snprintf(buf, sizeof(buf),
              "Trigger Temp:    %ld C\n"
              "Spray Duration:  %.1f s\n"
              "Spray Interval:  %ld s\n"
-             "Brightness:      %d%%",
+             "Brightness:      %d%%\n"
+             "Data Logging:    %s",
              (long)g_trigger_temperature,
              g_sprayer_duration,
              (long)g_sprayer_interval,
-             (int)g_brightness);
+             (int)g_brightness,
+             g_logging_enabled ? "ON" : "OFF");
     lv_label_set_text(summary_label, buf);
 }
 

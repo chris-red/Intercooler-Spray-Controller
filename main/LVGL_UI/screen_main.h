@@ -56,3 +56,9 @@ void screen_main_set_relay_active(bool is_active);
  * @param is_on True if system is powered on
  */
 void screen_main_set_power_on(bool is_on);
+
+/**
+ * Set logging active indicator
+ * @param is_active True if logging is enabled
+ */
+void screen_main_set_logging_active(bool is_active);

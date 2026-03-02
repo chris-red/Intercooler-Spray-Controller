@@ -9,12 +9,9 @@
 
 /***********************
  *  THERMISTOR PARAMETERS
- *  100K NTC with B=3950
- *  Using voltage divider: 3.3V --- [100K fixed] --- ADC_PIN --- [NTC] --- GND
+ *  GM IAT Sensor (NTC)
+ *  Using voltage divider: 3.3V --- [100K fixed] --- ADC_PIN --- [IAT Sensor] --- GND
  ***********************/
-#define THERMISTOR_NOMINAL_R    100000.0f   // Resistance at 25°C (ohms)
-#define THERMISTOR_NOMINAL_T    25.0f       // Nominal temperature (°C)
-#define THERMISTOR_BETA         3950.0f     // Beta coefficient
 #define THERMISTOR_SERIES_R     100000.0f   // Series resistor value (ohms)
 
 /***********************

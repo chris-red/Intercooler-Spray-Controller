@@ -12,6 +12,7 @@ static lv_obj_t *lbl_temperature = NULL;
 static lv_obj_t *lbl_time = NULL;
 static lv_obj_t *icon_relay_active = NULL;
 static lv_obj_t *icon_tank_empty = NULL;
+static lv_obj_t *icon_logging = NULL;
 static lv_timer_t *update_timer = NULL;
 
 /***********************
@@ -43,24 +44,16 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling - no scrollable content
     lv_obj_add_flag(container, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
 
-    // ===== POWER INDICATOR (top center) =====
-    icon_power = lv_label_create(container);
-    lv_label_set_text(icon_power, LV_SYMBOL_POWER);
-    lv_obj_set_style_text_font(icon_power, fonts->large, 0);
-    lv_obj_set_style_text_color(icon_power, COLOR_INDICATOR_OFF, 0);
-    lv_obj_set_style_pad_top(icon_power, 4, 0);
-    lv_obj_set_style_min_height(icon_power, 50, 0);
-
     // ===== TOP SECTION: Temperature Display =====
     lv_obj_t *temp_section = lv_obj_create(container);
-    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(60));
+    lv_obj_set_size(temp_section, LV_PCT(100), LV_PCT(80));
     lv_obj_set_style_bg_color(temp_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(temp_section, 0, 0);
     lv_obj_set_style_pad_all(temp_section, 0, 0);
     lv_obj_set_flex_flow(temp_section, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(temp_section, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(temp_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
-    lv_obj_add_flag(temp_section, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
+    lv_obj_clear_flag(temp_section, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(temp_section, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
     // Temperature value (large number)
     lbl_temperature = lv_label_create(temp_section);
@@ -68,45 +61,50 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_set_style_text_color(lbl_temperature, COLOR_TEMP_NORMAL, 0);
     lv_obj_set_style_text_font(lbl_temperature, fonts->temp, 0);
     lv_obj_set_size(lbl_temperature, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_top(lbl_temperature, 50, 0);
 
-    // ===== BOTTOM SECTION: Relay | Time | Tank (3 columns) =====
+    // ===== BOTTOM SECTION: Power+Relay | Time | REC+Tank (3 columns) =====
     lv_obj_t *bottom_section = lv_obj_create(container);
-    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(30));
+    lv_obj_set_size(bottom_section, LV_PCT(100), LV_PCT(35));
     lv_obj_set_style_bg_color(bottom_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(bottom_section, 0, 0);
-    lv_obj_set_style_pad_ver(bottom_section, 2, 0);
+    lv_obj_set_style_pad_ver(bottom_section, 0, 0);
     lv_obj_set_style_pad_hor(bottom_section, 60, 0);
     lv_obj_set_style_pad_column(bottom_section, 0, 0);
     lv_obj_set_flex_flow(bottom_section, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(bottom_section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(bottom_section, LV_OBJ_FLAG_SCROLLABLE);  // Disable scrolling
-    lv_obj_add_flag(bottom_section, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Allow gestures to bubble up
+    lv_obj_set_flex_align(bottom_section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(bottom_section, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(bottom_section, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
-    // --- Relay Indicator (left third) ---
+    // --- Left column: Power icon above Relay icon ---
     lv_obj_t *relay_container = lv_obj_create(bottom_section);
     lv_obj_set_size(relay_container, LV_PCT(30), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(relay_container, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(relay_container, 0, 0);
     lv_obj_set_style_pad_all(relay_container, 2, 0);
+    lv_obj_set_style_pad_row(relay_container, 4, 0);
     lv_obj_set_flex_flow(relay_container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(relay_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(relay_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(relay_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(relay_container, LV_OBJ_FLAG_GESTURE_BUBBLE);
+
+    icon_power = lv_label_create(relay_container);
+    lv_label_set_text(icon_power, LV_SYMBOL_POWER);
+    lv_obj_set_style_text_font(icon_power, fonts->large, 0);
+    lv_obj_set_style_text_color(icon_power, COLOR_INDICATOR_OFF, 0);
 
     icon_relay_active = lv_label_create(relay_container);
     lv_label_set_text(icon_relay_active, LV_SYMBOL_TINT);
     lv_obj_set_style_text_font(icon_relay_active, fonts->large, 0);
     lv_obj_set_style_text_color(icon_relay_active, COLOR_INDICATOR_OFF, 0);
 
-    // --- Time Display (middle third) ---
+    // --- Time Display (middle) ---
     lv_obj_t *time_section = lv_obj_create(bottom_section);
     lv_obj_set_size(time_section, LV_PCT(40), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(time_section, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(time_section, 0, 0);
     lv_obj_set_style_pad_all(time_section, 2, 0);
     lv_obj_set_flex_flow(time_section, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(time_section, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(time_section, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(time_section, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(time_section, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
@@ -115,19 +113,26 @@ lv_obj_t *screen_main_create(lv_obj_t *parent)
     lv_obj_set_style_text_color(lbl_time, COLOR_TEXT_PRIMARY, 0);
     lv_obj_set_style_text_font(lbl_time, fonts->large, 0);
 
-    // --- Tank Empty Indicator (right third) ---
+    // --- Right column: REC icon above Tank icon ---
     lv_obj_t *tank_container = lv_obj_create(bottom_section);
     lv_obj_set_size(tank_container, LV_PCT(30), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(tank_container, COLOR_BG_PRIMARY, 0);
     lv_obj_set_style_border_width(tank_container, 0, 0);
     lv_obj_set_style_pad_all(tank_container, 2, 0);
+    lv_obj_set_style_pad_row(tank_container, 4, 0);
     lv_obj_set_flex_flow(tank_container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(tank_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(tank_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(tank_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(tank_container, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
+    // Logging indicator — "REC" text, red when active, hidden when off
+    icon_logging = lv_label_create(tank_container);
+    lv_label_set_text(icon_logging, LV_SYMBOL_SD_CARD);
+    lv_obj_set_style_text_font(icon_logging, fonts->large, 0);
+    lv_obj_set_style_text_color(icon_logging, COLOR_INDICATOR_OFF, 0);
+
     icon_tank_empty = lv_label_create(tank_container);
-    lv_label_set_text(icon_tank_empty, LV_SYMBOL_TINT);
+    lv_label_set_text(icon_tank_empty, LV_SYMBOL_WARNING);
     lv_obj_set_style_text_font(icon_tank_empty, fonts->large, 0);
     lv_obj_set_style_text_color(icon_tank_empty, COLOR_INDICATOR_OFF, 0);
 
@@ -157,6 +162,7 @@ void screen_main_destroy(void)
     lbl_time = NULL;
     icon_relay_active = NULL;
     icon_tank_empty = NULL;
+    icon_logging = NULL;
 }
 
 void screen_main_show(void)
@@ -208,7 +214,7 @@ void screen_main_set_tank_empty(bool is_empty)
     if (!icon_tank_empty) return;
 
     if (is_empty) {
-        lv_obj_set_style_text_color(icon_tank_empty, COLOR_TANK_EMPTY, 0);  // Red droplet
+        lv_obj_set_style_text_color(icon_tank_empty, COLOR_TANK_EMPTY, 0);  // Red 
     } else {
         lv_obj_set_style_text_color(icon_tank_empty, COLOR_INDICATOR_OFF, 0);  // Dim
     }
@@ -233,5 +239,16 @@ void screen_main_set_power_on(bool is_on)
         lv_obj_set_style_text_color(icon_power, COLOR_RELAY_ACTIVE, 0);  // Green
     } else {
         lv_obj_set_style_text_color(icon_power, COLOR_INDICATOR_OFF, 0);  // Dim
+    }
+}
+
+void screen_main_set_logging_active(bool is_active)
+{
+    if (!icon_logging) return;
+
+    if (is_active) {
+        lv_obj_set_style_text_color(icon_logging, COLOR_LOGGING_ACTIVE, 0);  // Yellow
+    } else {
+        lv_obj_set_style_text_color(icon_logging, COLOR_INDICATOR_OFF, 0);  // Dim
     }
 }

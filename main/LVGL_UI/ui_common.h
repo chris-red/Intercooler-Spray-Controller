@@ -23,6 +23,7 @@
 #define COLOR_INDICATOR_OFF     lv_color_hex(0x333333)  // Dark gray (off)
 #define COLOR_RELAY_ACTIVE      lv_color_hex(0x00FF00)  // Green (relay active)
 #define COLOR_TANK_EMPTY        lv_color_hex(0xFF0000)  // Red (tank empty)
+#define COLOR_LOGGING_ACTIVE    lv_color_hex(0xFFFF00)  // Yellow (logging active)
 
 // Accent
 #define COLOR_ACCENT            lv_color_hex(0x00BFFF)  // Deep sky blue

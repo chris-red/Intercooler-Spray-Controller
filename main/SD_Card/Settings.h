@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @brief Settings data structure.
@@ -13,6 +14,13 @@ typedef struct {
     float    spray_duration;    /**< Spray duration (s), 0.5–10.0     */
     int32_t  spray_interval;    /**< Spray interval (s), 5–30         */
     uint8_t  brightness;        /**< LCD brightness (%), 0–100        */
+    bool     logging_enabled;   /**< Temperature data logging on/off  */
+    float    max_g_left;        /**< Peak left G-force                 */
+    float    max_g_right;       /**< Peak right G-force                */
+    float    max_g_forward;     /**< Peak forward G-force              */
+    float    max_g_brake;       /**< Peak braking G-force              */
+    float    cal_offset_y;      /**< G-meter calibration offset Y      */
+    float    cal_offset_z;      /**< G-meter calibration offset Z      */
 } app_settings_t;
 
 /**

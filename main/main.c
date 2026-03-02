@@ -18,6 +18,9 @@
 #include "esp_log.h"
 #include "Thermistor.h"
 #include "Buttons.h"
+#include "Temp_Logger.h"
+#include "screen_data_logging.h"
+#include "G_Meter.h"
 
 static const char *TAG = "main";
 
@@ -41,7 +44,7 @@ void Driver_Loop(void *parameter)
 
     while(1)
     {
-       // QMI8658_Loop();
+        G_Meter_Update();            // Sample accelerometer for G-meter
         RTC_Loop();
        // BAT_Get_Volts();
 
@@ -58,6 +61,11 @@ void Driver_Loop(void *parameter)
                 lvgl_port_unlock();
             }
         }
+        }
+
+        // --- Feed temperature data logger (writes once/sec internally) ---
+        if (temp > -900.0f) {
+            Temp_Logger_Feed(temp);
         }
 
 #if ENABLE_BUTTONS
@@ -91,7 +99,7 @@ void Driver_Init(void)
     //BAT_Init();
     I2C_Init();
     PCF85063_Init();
-   // QMI8658_Init();
+    G_Meter_Init();                 // Initialize QMI8658 accelerometer for G-meter
     EXIO_Init();                    // Example Initialize EXIO
     ESP_LOGI(TAG, "EXIO init done, starting Thermistor...");
     Thermistor_Init();               // Initialize thermistor ADC on GPIO19
@@ -129,6 +137,10 @@ void app_main(void)
     if (sd_ret == ESP_OK) {
         settings_load();             // Load saved settings from SD card
         SD_Logger_Init(0);           // Start logging to SD card (0 = default 1s sync)
+        Temp_Logger_Init();          // Initialize temperature data logger
+        if (g_logging_enabled) {
+            Temp_Logger_SetEnabled(true);  // Resume logging if it was on
+        }
     } else {
         ESP_LOGW(TAG, "SD card not available - logging to serial only");
     }
@@ -140,6 +152,8 @@ void app_main(void)
     intercooler_ui_create();
     // Ensure brightness UI matches loaded value after widgets are created
     screen_brightness_update_ui();
+    // Set logging icon to match persisted state
+    screen_main_set_logging_active(g_logging_enabled);
     lvgl_port_unlock();
     ESP_LOGI(TAG, "UI created");
 

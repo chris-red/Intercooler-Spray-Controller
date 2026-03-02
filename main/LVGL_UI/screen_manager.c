@@ -6,6 +6,9 @@
 #include "screen_spray_duration.h"
 #include "screen_spray_interval.h"
 #include "screen_save_settings.h"
+#include "screen_data_logging.h"
+#include "screen_gmeter.h"
+#include "screen_gmeter_cal.h"
 #include "ui_common.h"
 #include "esp_log.h"
 
@@ -55,6 +58,8 @@ static void inactivity_timer_cb(lv_timer_t *timer)
     // Return to main screen after inactivity with correct transition direction
     if (current_screen == SCREEN_ID_BRIGHTNESS) {
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
+    } else if (current_screen == SCREEN_ID_GMETER) {
+        screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
     } else if (current_screen != SCREEN_ID_MAIN) {
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_RIGHT);
     }
@@ -83,6 +88,12 @@ static void gesture_event_cb(lv_event_t *e)
     } else if (current_screen == SCREEN_ID_BRIGHTNESS && dir == LV_DIR_BOTTOM) {
         ESP_LOGI(TAG, "NAV: brightness -> main");
         screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_DOWN);
+    } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_BOTTOM) {
+        ESP_LOGI(TAG, "NAV: main -> g-meter");
+        screen_manager_navigate(SCREEN_ID_GMETER, SCREEN_TRANSITION_SLIDE_DOWN);
+    } else if (current_screen == SCREEN_ID_GMETER && dir == LV_DIR_TOP) {
+        ESP_LOGI(TAG, "NAV: g-meter -> main");
+        screen_manager_navigate(SCREEN_ID_MAIN, SCREEN_TRANSITION_SLIDE_UP);
     } else if (current_screen == SCREEN_ID_MAIN && dir == LV_DIR_RIGHT) {
         ESP_LOGI(TAG, "NAV: main -> clock settings");
         screen_manager_navigate(SCREEN_ID_CLOCK_SETTINGS, SCREEN_TRANSITION_SLIDE_RIGHT);
@@ -108,11 +119,23 @@ static void gesture_event_cb(lv_event_t *e)
         ESP_LOGI(TAG, "NAV: spray interval -> spray duration");
         screen_manager_navigate(SCREEN_ID_SPRAY_DURATION, SCREEN_TRANSITION_SLIDE_RIGHT);
     } else if (current_screen == SCREEN_ID_SPRAY_INTERVAL && dir == LV_DIR_LEFT) {
-        ESP_LOGI(TAG, "NAV: spray interval -> save settings");
+        ESP_LOGI(TAG, "NAV: spray interval -> data logging");
+        screen_manager_navigate(SCREEN_ID_DATA_LOGGING, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_DATA_LOGGING && dir == LV_DIR_RIGHT) {
+        ESP_LOGI(TAG, "NAV: data logging -> spray interval");
+        screen_manager_navigate(SCREEN_ID_SPRAY_INTERVAL, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_DATA_LOGGING && dir == LV_DIR_LEFT) {
+        ESP_LOGI(TAG, "NAV: data logging -> save settings");
         screen_manager_navigate(SCREEN_ID_SAVE_SETTINGS, SCREEN_TRANSITION_SLIDE_LEFT);
     } else if (current_screen == SCREEN_ID_SAVE_SETTINGS && dir == LV_DIR_RIGHT) {
-        ESP_LOGI(TAG, "NAV: save settings -> spray interval");
-        screen_manager_navigate(SCREEN_ID_SPRAY_INTERVAL, SCREEN_TRANSITION_SLIDE_RIGHT);
+        ESP_LOGI(TAG, "NAV: save settings -> data logging");
+        screen_manager_navigate(SCREEN_ID_DATA_LOGGING, SCREEN_TRANSITION_SLIDE_RIGHT);
+    } else if (current_screen == SCREEN_ID_GMETER && dir == LV_DIR_LEFT) {
+        ESP_LOGI(TAG, "NAV: g-meter -> g-meter cal");
+        screen_manager_navigate(SCREEN_ID_GMETER_CAL, SCREEN_TRANSITION_SLIDE_LEFT);
+    } else if (current_screen == SCREEN_ID_GMETER_CAL && dir == LV_DIR_RIGHT) {
+        ESP_LOGI(TAG, "NAV: g-meter cal -> g-meter");
+        screen_manager_navigate(SCREEN_ID_GMETER, SCREEN_TRANSITION_SLIDE_RIGHT);
     } else {
         ESP_LOGW(TAG, "Swipe %s on screen %d - NO MATCHING ROUTE", dir_str, current_screen);
     }
@@ -203,6 +226,15 @@ static void cleanup_screen(screen_id_t screen)
             case SCREEN_ID_SPRAY_INTERVAL:
                 screen_spray_interval_destroy();
                 break;
+            case SCREEN_ID_DATA_LOGGING:
+                screen_data_logging_destroy();
+                break;
+            case SCREEN_ID_GMETER_CAL:
+                screen_gmeter_cal_destroy();
+                break;
+            case SCREEN_ID_GMETER:
+                screen_gmeter_destroy();
+                break;
             case SCREEN_ID_SAVE_SETTINGS:
                 screen_save_settings_destroy();
                 break;
@@ -277,6 +309,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_SPRAY_INTERVAL:
                 screen_containers[screen] = screen_spray_interval_create(screen_root);
                 break;
+            case SCREEN_ID_DATA_LOGGING:
+                screen_containers[screen] = screen_data_logging_create(screen_root);
+                break;
+            case SCREEN_ID_GMETER_CAL:
+                screen_containers[screen] = screen_gmeter_cal_create(screen_root);
+                break;
+            case SCREEN_ID_GMETER:
+                screen_containers[screen] = screen_gmeter_create(screen_root);
+                break;
             case SCREEN_ID_SAVE_SETTINGS:
                 screen_containers[screen] = screen_save_settings_create(screen_root);
                 break;
@@ -314,6 +355,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             case SCREEN_ID_SPRAY_INTERVAL:
                 screen_spray_interval_hide();
                 break;
+            case SCREEN_ID_DATA_LOGGING:
+                screen_data_logging_hide();
+                break;
+            case SCREEN_ID_GMETER_CAL:
+                screen_gmeter_cal_hide();
+                break;
+            case SCREEN_ID_GMETER:
+                screen_gmeter_hide();
+                break;
             case SCREEN_ID_SAVE_SETTINGS:
                 screen_save_settings_hide();
                 break;
@@ -341,6 +391,15 @@ void screen_manager_navigate(screen_id_t screen, screen_transition_t transition)
             break;
         case SCREEN_ID_SPRAY_INTERVAL:
             screen_spray_interval_show();
+            break;
+        case SCREEN_ID_DATA_LOGGING:
+            screen_data_logging_show();
+            break;
+        case SCREEN_ID_GMETER_CAL:
+            screen_gmeter_cal_show();
+            break;
+        case SCREEN_ID_GMETER:
+            screen_gmeter_show();
             break;
         case SCREEN_ID_SAVE_SETTINGS:
             screen_save_settings_show();
@@ -370,6 +429,21 @@ void screen_manager_reset_inactivity(void)
         inactivity_timer = lv_timer_create(inactivity_timer_cb, INACTIVITY_TIMEOUT_MS, NULL);
     } else {
         lv_timer_reset(inactivity_timer);
+    }
+}
+
+void screen_manager_pause_inactivity(void)
+{
+    if (inactivity_timer) {
+        lv_timer_pause(inactivity_timer);
+    }
+}
+
+void screen_manager_resume_inactivity(void)
+{
+    if (inactivity_timer) {
+        lv_timer_reset(inactivity_timer);
+        lv_timer_resume(inactivity_timer);
     }
 }
 
