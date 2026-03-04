@@ -21,6 +21,7 @@
 #include "Temp_Logger.h"
 #include "screen_data_logging.h"
 #include "G_Meter.h"
+#include "Spray_Controller.h"
 
 static const char *TAG = "main";
 
@@ -40,6 +41,7 @@ void Driver_Loop(void *parameter)
 #if ENABLE_BUTTONS
     static bool prev_power_state = false;
     static bool prev_tank_state = false;
+    static bool first_run = true;
 #endif
 
     while(1)
@@ -63,11 +65,6 @@ void Driver_Loop(void *parameter)
             }
         }
 
-        // --- Feed temperature data logger (writes once/sec internally) ---
-        if (temp > -900.0f) {
-            Temp_Logger_Feed(temp);
-        }
-
         // --- Periodic flush of temperature log to SD card ---
         {
             static int flush_counter = 0;
@@ -80,7 +77,8 @@ void Driver_Loop(void *parameter)
 #if ENABLE_BUTTONS
         // --- Read buttons and update UI ---
         bool power_on = Button_Power_GetState();
-        if (power_on != prev_power_state) {
+        if (power_on != prev_power_state || first_run) {
+            ESP_LOGI(TAG, "EVENT: Power %s", power_on ? "ON" : "OFF");
             if (lvgl_port_lock(0)) {
                 intercooler_ui_set_power_on(power_on);
                 lvgl_port_unlock();
@@ -89,12 +87,24 @@ void Driver_Loop(void *parameter)
         }
 
         bool tank_empty = Button_Tank_GetState();
-        if (tank_empty != prev_tank_state) {
+        if (tank_empty != prev_tank_state || first_run) {
+            ESP_LOGI(TAG, "EVENT: Tank %s", tank_empty ? "EMPTY" : "OK");
             if (lvgl_port_lock(0)) {
                 intercooler_ui_set_tank_empty(tank_empty);
                 lvgl_port_unlock();
             }
             prev_tank_state = tank_empty;
+        }
+        first_run = false;
+
+        // --- Spray controller: relay on GPIO20 ---
+        Spray_Controller_Update(temp, power_on, tank_empty);
+
+        // --- Feed data logger with all state columns ---
+        if (temp > -900.0f) {
+            Temp_Logger_Feed(temp, power_on, tank_empty,
+                            Spray_Controller_IsSpraying(),
+                            Spray_Controller_IsCooldown());
         }
 #endif
 
@@ -117,6 +127,7 @@ void Driver_Init(void)
     Buttons_Init();                  // Initialize buttons on GPIO43/44 (disables UART!)
     ESP_LOGI(TAG, "Buttons init done");
 #endif
+    Spray_Controller_Init();         // Initialize relay GPIO20 (default LOW)
     xTaskCreatePinnedToCore(
         Driver_Loop, 
         "Other Driver task",
@@ -164,6 +175,11 @@ void app_main(void)
     screen_brightness_update_ui();
     // Set logging icon to match persisted state
     screen_main_set_logging_active(g_logging_enabled);
+#if ENABLE_BUTTONS
+    // Push initial switch states now that the UI widgets exist
+    intercooler_ui_set_power_on(Button_Power_GetState());
+    intercooler_ui_set_tank_empty(Button_Tank_GetState());
+#endif
     lvgl_port_unlock();
     ESP_LOGI(TAG, "UI created");
 

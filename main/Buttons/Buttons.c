@@ -77,8 +77,13 @@ void Buttons_Init(void)
     gpio_isr_handler_add(BUTTON_POWER_GPIO, power_isr_handler, NULL);
     gpio_isr_handler_add(BUTTON_TANK_GPIO, tank_isr_handler, NULL);
 
-    ESP_LOGI(BTN_TAG, "Buttons initialized: Power=GPIO%d, Tank=GPIO%d",
-             BUTTON_POWER_GPIO, BUTTON_TANK_GPIO);
+    /* Read initial switch states so we don't have to wait for an edge */
+    power_raw_pressed = (gpio_get_level(BUTTON_POWER_GPIO) == 0);
+    tank_raw_pressed  = (gpio_get_level(BUTTON_TANK_GPIO) == 0);
+
+    ESP_LOGI(BTN_TAG, "Buttons initialized: Power=GPIO%d (%s), Tank=GPIO%d (%s)",
+             BUTTON_POWER_GPIO, power_raw_pressed ? "ON" : "OFF",
+             BUTTON_TANK_GPIO,  tank_raw_pressed  ? "ON" : "OFF");
 }
 
 bool Button_Power_GetState(void) { return power_raw_pressed; }

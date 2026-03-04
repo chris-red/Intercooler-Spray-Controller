@@ -74,7 +74,7 @@ static esp_err_t open_log_file(void)
         return ESP_FAIL;
     }
 
-    fprintf(s_file, "Date,Time,Temp_C\n");
+    fprintf(s_file, "Date,Time,Temp_C,Power,Tank,Spraying,Cooldown\n");
 
     ESP_LOGI(TAG, "Logging to %s", path);
     return ESP_OK;
@@ -126,7 +126,8 @@ bool Temp_Logger_IsActive(void)
     return s_active;
 }
 
-void Temp_Logger_Feed(float temp_celsius)
+void Temp_Logger_Feed(float temp_celsius, bool power_on, bool tank_empty,
+                      bool spraying, bool cooldown)
 {
     if (!s_active || !s_mutex) return;
 
@@ -141,10 +142,14 @@ void Temp_Logger_Feed(float temp_celsius)
     }
 
     if (s_file) {
-        fprintf(s_file, "%04d-%02d-%02d,%02d:%02d:%02d,%.1f\n",
+        fprintf(s_file, "%04d-%02d-%02d,%02d:%02d:%02d,%.1f,%d,%d,%d,%d\n",
                 datetime.year, datetime.month, datetime.day,
                 datetime.hour, datetime.minute, datetime.second,
-                temp_celsius);
+                temp_celsius,
+                power_on ? 1 : 0,
+                tank_empty ? 1 : 0,
+                spraying ? 1 : 0,
+                cooldown ? 1 : 0);
         s_dirty = true;
         s_last_write_tick = now;
     }

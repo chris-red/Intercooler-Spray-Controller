@@ -33,12 +33,19 @@ void Temp_Logger_SetEnabled(bool enable);
 bool Temp_Logger_IsActive(void);
 
 /**
- * @brief Record one temperature sample.
+ * @brief Record one data sample with system state.
  *
- * Called from the driver loop with the latest reading.
- * The logger decides internally whether it is time to write.
+ * Called from the driver loop with the latest reading and status flags.
+ * The logger decides internally whether it is time to write (once/sec).
+ *
+ * @param temp_celsius  Current temperature in °C
+ * @param power_on      true when power switch is on
+ * @param tank_empty    true when tank-empty sensor is active
+ * @param spraying      true when the relay is active (spraying)
+ * @param cooldown      true when in cooldown interval
  */
-void Temp_Logger_Feed(float temp_celsius);
+void Temp_Logger_Feed(float temp_celsius, bool power_on, bool tank_empty,
+                      bool spraying, bool cooldown);
 
 /**
  * @brief Flush buffered data to SD card.

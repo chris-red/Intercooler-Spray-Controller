@@ -185,13 +185,33 @@ void screen_main_update_temperature(float temp_celsius)
 {
     if (!lbl_temperature) return;
 
+    /* Hysteresis: only change the displayed integer when the reading moves
+       more than 0.3 °C past the current displayed value.  This prevents the
+       display from flickering between two adjacent integers when the actual
+       temperature sits near a rounding boundary. */
+    static float displayed_temp = -999.0f;
+    static bool first_reading = true;
+    const float HYSTERESIS = 0.3f;
+
+    float rounded = (float)(int)(temp_celsius + (temp_celsius >= 0 ? 0.5f : -0.5f));
+
+    if (first_reading) {
+        displayed_temp = rounded;
+        first_reading = false;
+    } else {
+        float diff = temp_celsius - displayed_temp;
+        if (diff > (0.5f + HYSTERESIS) || diff < -(0.5f + HYSTERESIS)) {
+            displayed_temp = rounded;
+        }
+    }
+
     char temp_str[20];
-    snprintf(temp_str, sizeof(temp_str), "%.0f°", temp_celsius);
+    snprintf(temp_str, sizeof(temp_str), "%.0f°", displayed_temp);
 
     lv_color_t color = COLOR_TEMP_NORMAL;
-    if (temp_celsius >= 50.0f) {
+    if (displayed_temp >= 50.0f) {
         color = COLOR_TEMP_CRITICAL;
-    } else if (temp_celsius >= 40.0f) {
+    } else if (displayed_temp >= 40.0f) {
         color = COLOR_TEMP_WARNING;
     }
 

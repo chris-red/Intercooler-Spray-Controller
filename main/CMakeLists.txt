@@ -33,6 +33,7 @@ idf_component_register(
                               "Temp_Logger/Temp_Logger.c"
                               "G_Meter/G_Meter.c"
                               "Wifi_File_Server/Wifi_File_Server.c"
+                              "Spray_Controller/Spray_Controller.c"
 
                         INCLUDE_DIRS "./EXIO"
                                      "./LCD_Driver"
@@ -53,5 +54,6 @@ idf_component_register(
                                      "./Temp_Logger"
                                      "./G_Meter"
                                      "./Wifi_File_Server"
+                                     "./Spray_Controller"
                                      "."
                         )
